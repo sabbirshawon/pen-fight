@@ -715,7 +715,7 @@ function connect() {
   if (socket || !hasSocket()) return socket;
   socket = window.io({ transports: ['websocket', 'polling'] });
   socket.on('connect_error', () => { $('#online-status').textContent = t('connecting'); });
-  socket.on('connect', () => { $('#online-status').textContent = ''; });
+  socket.on('connect', () => { $('#online-status').textContent = ''; if (M && M.mode === 'online' && M.away) rejoin(); });
   socket.on('match:start', (d) => onlineStart(d));
   socket.on('shot', (res) => queue(() => onlineShot(res)));
   socket.on('round:start', (d) => queue(() => onlineRound(d)));
@@ -728,8 +728,33 @@ function connect() {
   });
   socket.on('opponent:left', () => onlineLeft());
   socket.on('match:end', (d) => { if (M && M.mode === 'online' && !M.match.over) { M.match.over = true; M.match.winner = d.winner; endMatch(M, d.reason); } });
-  socket.on('disconnect', () => { if (M && M.mode === 'online' && !M.match.over) { toast(t('connecting')); } });
+  socket.on('disconnect', () => {
+    if (M && M.mode === 'online' && !M.match.over) { M.away = true; view.setInput(-1); toast(t('connecting'), 20000); }
+  });
+  socket.on('opponent:away', () => { if (M && M.mode === 'online' && !M.match.over) toast(t('oppAway'), 20000); });
+  socket.on('opponent:back', () => { if (M && M.mode === 'online') toast(t('oppBack')); });
   return socket;
+}
+
+// back after a drop: take our seat again, or say the match is gone (for example the server restarted)
+function rejoin() {
+  const s = M;
+  net.emit('room:rejoin', { code: s.code, clientId: D.clientId }, (r) => {
+    if (M !== s) return;
+    s.away = false;
+    if (!r || !r.ok) {
+      if (s.match.over) return;
+      quitMatch(true);
+      home();
+      toast(t('connLost'), 5000);
+      return;
+    }
+    s.q = Promise.resolve();
+    s.match = restore(r.state);
+    view.setState(r.state);
+    toast(t('reconnected'));
+    onlineTurn({ turn: r.turn, deadline: r.deadline, now: r.now });
+  });
 }
 
 function queue(fn) {
@@ -1003,4 +1028,4 @@ if (!sessionStorage.getItem('pf-visit')) { sessionStorage.setItem('pf-visit', '1
 }
 
 // handy for debugging in the console
-window.__pf = { view, get match() { return M; } };
+window.__pf = { view, get match() { return M; }, get socket() { return socket; } };

@@ -102,6 +102,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 const rooms = new Map(); // code -> room
+const GRACE_MS = 20000;  // how long a dropped player keeps their seat
 let queue = [];          // sockets waiting for quick match
 
 function makeCode() {
@@ -189,7 +190,13 @@ function leaveRoom(socket, reason = 'left') {
   socket.data.room = null;
   if (!room) return;
   socket.leave(room.code);
-  const idx = room.players.findIndex((p) => p.socket === socket);
+  const p = room.players.find((q) => q.socket === socket);
+  if (p) removePlayer(room, p, reason);
+}
+
+function removePlayer(room, p, reason) {
+  clearTimeout(p.graceTimer);
+  const idx = room.players.indexOf(p);
   if (idx < 0) return;
   const m = room.match;
   if (m && !m.over && !room.recorded) {
@@ -294,9 +301,33 @@ io.on('connection', (socket) => {
 
   socket.on('leave', () => { queue = queue.filter((s) => s !== socket); leaveRoom(socket); });
 
+  // a phone that drops for a moment (screen off, app switch, weak network) gets its seat back
+  socket.on('room:rejoin', (info = {}, ack) => {
+    const room = rooms.get(String(info.code || '').toUpperCase().trim());
+    const id = cleanId(info.clientId);
+    const p = room && room.match && !room.match.over && id && room.players.find((q) => q.clientId === id && !q.socket);
+    if (!p) return ack && ack({ ok: false });
+    clearTimeout(p.graceTimer);
+    leaveRoom(socket);
+    p.socket = socket;
+    socket.data.room = room.code;
+    socket.join(room.code);
+    socket.to(room.code).emit('opponent:back');
+    ack && ack({ ok: true, you: room.players.indexOf(p), state: snapshot(room.match), turn: room.match.turn, deadline: room.turnDeadline, now: Date.now() });
+  });
+
   socket.on('disconnect', () => {
     queue = queue.filter((s) => s !== socket);
-    leaveRoom(socket, 'disconnect');
+    const room = rooms.get(socket.data.room);
+    const p = room && room.players.find((q) => q.socket === socket);
+    if (!p || !room.match || room.match.over) { leaveRoom(socket, 'disconnect'); return; }
+    p.socket = null;
+    socket.data.room = null;
+    emitRoom(room, 'opponent:away', { seconds: GRACE_MS / 1000 });
+    p.graceTimer = setTimeout(() => {
+      removePlayer(room, p, 'disconnect');
+      if (room.players.length === 0) rooms.delete(room.code);
+    }, GRACE_MS);
   });
 });
 

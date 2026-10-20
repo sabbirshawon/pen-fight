@@ -19,6 +19,8 @@ const en = {
   changePen: 'Change pen', menu: 'Menu',
 
   you: 'You', computerName: 'Computer', player1: 'Player 1', player2: 'Player 2',
+  oppAway: 'Your opponent lost connection. Waiting for them…', oppBack: 'Your opponent is back!', reconnected: 'Connected again!',
+  connLost: 'Connection lost and the match ended. Start a new one.',
   yourTurn: 'Your turn', turnOf: "{name}'s turn", thinking: 'Computer is thinking…', aiming: '{name} is aiming…',
   youWin: 'You won!', nameWon: '{name} won', winsP: '{name} wins!', roundWin: '{name} takes the round',
   roundYou: 'You take the round!', roundDraw: 'Both fell!', roundDrawSub: 'Replay the round', deskShrinks: 'The desk shrinks!',
@@ -83,6 +85,8 @@ const bn = {
   changePen: 'কলম বদলাও', menu: 'মেনু',
 
   you: 'তুমি', computerName: 'কম্পিউটার', player1: 'খেলোয়াড় ১', player2: 'খেলোয়াড় ২',
+  oppAway: 'প্রতিপক্ষের সংযোগ কেটে গেছে। অপেক্ষা করছি…', oppBack: 'প্রতিপক্ষ ফিরে এসেছে!', reconnected: 'আবার সংযুক্ত হয়েছে!',
+  connLost: 'সংযোগ কেটে গিয়ে ম্যাচ শেষ হয়ে গেছে। নতুন করে শুরু করো।',
   yourTurn: 'তোমার পালা', turnOf: '{name}-এর পালা', thinking: 'কম্পিউটার ভাবছে…', aiming: '{name} নিশানা করছে…',
   youWin: 'তুমি জিতেছ!', nameWon: '{name} জিতেছে', winsP: '{name} জিতেছে!', roundWin: 'রাউন্ড {name}-এর',
   roundYou: 'রাউন্ড তোমার!', roundDraw: 'দুটোই পড়ে গেছে!', roundDrawSub: 'রাউন্ড আবার হবে', deskShrinks: 'বেঞ্চ ছোট হচ্ছে!',
