@@ -107,7 +107,7 @@ function decorateOldDesk(ctx, w, h, rnd) {
     ctx.fillStyle = 'rgba(70,38,16,0.42)'; ctx.fillText(txt, 0, 0);
     ctx.restore();
   };
-  carve('R + S', 160, 140, -0.12);
+  carve('S + T', 160, 140, -0.12);
   carve('2009', 930, 610, 0.08);
   carve('Class 7B', 820, 140, 0.05);
   // a heart
