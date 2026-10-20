@@ -32,6 +32,7 @@ const WOODS = {
   clean: { light: [232, 190, 140], dark: [196, 146, 96], grain: [150, 100, 58], seed: 7, knots: 3, contrast: 0.85 },
   old: { light: [205, 158, 104], dark: [160, 112, 66], grain: [104, 66, 34], seed: 21, knots: 5, contrast: 1.1 },
   floor: { light: [130, 96, 66], dark: [100, 72, 48], grain: [70, 48, 30], seed: 3, knots: 4, contrast: 1 },
+  school: { light: [206, 146, 86], dark: [164, 102, 52], grain: [96, 54, 22], seed: 33, knots: 4, contrast: 1.05 },
 };
 
 const woodCache = new Map();
@@ -382,6 +383,132 @@ export function penThumb(canvas, pen, look) {
   const s = (w - 6) / pen.len;
   ctx.scale(s, s);
   drawPen(ctx, pen, { look });
+}
+
+/**
+ * A classroom bench top for the menu background: varnished planks with
+ * seams, a pencil groove, an inkwell hole, carvings and ink stains.
+ */
+export function makeSchoolDesk(w = 1400, h = 860) {
+  const key = 'schooldesk' + w + 'x' + h;
+  if (woodCache.has(key)) return woodCache.get(key);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const tex = makeWood('school', w, Math.round(h * 0.6));
+  const rnd = mulberry(77);
+  const s = w / 1200;
+
+  // three planks, each cut from a different part of the wood
+  const cuts = [0, 0.37, 0.71, 1];
+  for (let i = 0; i < 3; i++) {
+    const y0 = Math.round(cuts[i] * h), y1 = Math.round(cuts[i + 1] * h), bh = y1 - y0;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y0, w, bh); ctx.clip();
+    if (i === 1) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+    const srcY = Math.min(tex.height - Math.min(bh, tex.height), [0, 60, 25][i] * s);
+    ctx.drawImage(tex, 0, srcY, w, Math.min(bh, tex.height), 0, y0, w, bh);
+    ctx.restore();
+    // each plank a slightly different tone
+    ctx.fillStyle = ['rgba(255,220,170,0.05)', 'rgba(60,30,10,0.06)', 'rgba(255,200,140,0.03)'][i];
+    ctx.fillRect(0, y0, w, bh);
+  }
+
+  // seams between the planks
+  const seam = (y) => {
+    const g = ctx.createLinearGradient(0, y - 12 * s, 0, y);
+    g.addColorStop(0, 'rgba(40,18,6,0)'); g.addColorStop(1, 'rgba(40,18,6,0.35)');
+    ctx.fillStyle = g; ctx.fillRect(0, y - 12 * s, w, 12 * s);
+    ctx.fillStyle = 'rgba(30,14,4,0.85)'; ctx.fillRect(0, y - 1.5 * s, w, 3 * s);
+    ctx.fillStyle = 'rgba(255,230,190,0.22)'; ctx.fillRect(0, y + 1.5 * s, w, 1.5 * s);
+  };
+  seam(cuts[1] * h); seam(cuts[2] * h);
+  // a butt joint and screws
+  const jx = w * 0.64, jy0 = cuts[1] * h, jy1 = cuts[2] * h;
+  ctx.fillStyle = 'rgba(30,14,4,0.8)'; ctx.fillRect(jx - 1.5 * s, jy0, 3 * s, jy1 - jy0);
+  ctx.fillStyle = 'rgba(255,230,190,0.18)'; ctx.fillRect(jx + 1.5 * s, jy0, 1.5 * s, jy1 - jy0);
+  const screw = (x, y) => {
+    const r = 6 * s;
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    g.addColorStop(0, '#d9d4c8'); g.addColorStop(1, '#6d665a');
+    ctx.fillStyle = 'rgba(30,14,4,0.5)'; ctx.beginPath(); ctx.arc(x + 1, y + 1.5, r + 1, 0, 7); ctx.fill();
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,36,30,0.8)'; ctx.lineWidth = 1.6 * s;
+    ctx.beginPath(); ctx.moveTo(x - r * 0.6, y - r * 0.2); ctx.lineTo(x + r * 0.6, y + r * 0.2); ctx.stroke();
+  };
+  const m = 40 * s, sy1 = cuts[1] * h + 24 * s, sy2 = cuts[2] * h + 24 * s;
+  [[m, sy1], [w - m, sy1], [m, sy2], [w - m, sy2], [jx - 22 * s, (jy0 + jy1) / 2], [jx + 22 * s, (jy0 + jy1) / 2]]
+    .forEach(([x, y]) => screw(x, y));
+
+  // pencil groove along the top
+  const gy = h * 0.075, gh = 30 * s, gx0 = w * 0.1, gx1 = w * 0.8;
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(gx0, gy - gh / 2, gx1 - gx0, gh, gh / 2);
+  const gg = ctx.createLinearGradient(0, gy - gh / 2, 0, gy + gh / 2);
+  gg.addColorStop(0, 'rgba(40,18,6,0.75)'); gg.addColorStop(0.55, 'rgba(70,36,14,0.45)'); gg.addColorStop(1, 'rgba(255,225,180,0.25)');
+  ctx.fillStyle = gg; ctx.fill();
+  ctx.clip();
+  // a pencil and a ballpoint resting in the groove
+  ctx.save(); ctx.translate(gx0 + (gx1 - gx0) * 0.3, gy + 2 * s); ctx.scale(s * 1.25, s * 1.25); ctx.rotate(0.01);
+  ctx.fillStyle = 'rgba(20,8,2,0.35)'; ctx.fillRect(-104, 4, 210, 6);
+  drawPen(ctx, { id: 'pencil', len: 212, wid: 14 }, { look: 'real' });
+  ctx.restore();
+  ctx.save(); ctx.translate(gx0 + (gx1 - gx0) * 0.72, gy + 2 * s); ctx.scale(s * 1.2, s * 1.2); ctx.rotate(Math.PI - 0.01);
+  drawPen(ctx, { id: 'ballpoint', len: 200, wid: 15 }, { look: 'real' });
+  ctx.restore();
+  ctx.restore();
+
+  // inkwell hole with a metal ring
+  const ix = w * 0.9, iy = gy + 4 * s, ir = 20 * s;
+  const ring = ctx.createRadialGradient(ix - ir * 0.4, iy - ir * 0.4, 2, ix, iy, ir * 1.35);
+  ring.addColorStop(0, '#efe6cf'); ring.addColorStop(0.6, '#a59a80'); ring.addColorStop(1, '#5a5242');
+  ctx.fillStyle = 'rgba(30,14,4,0.45)'; ctx.beginPath(); ctx.arc(ix + 2 * s, iy + 3 * s, ir * 1.35, 0, 7); ctx.fill();
+  ctx.fillStyle = ring; ctx.beginPath(); ctx.arc(ix, iy, ir * 1.3, 0, 7); ctx.fill();
+  const hole = ctx.createRadialGradient(ix, iy - ir * 0.3, 1, ix, iy, ir);
+  hole.addColorStop(0, '#0d0703'); hole.addColorStop(1, '#2c1a0c');
+  ctx.fillStyle = hole; ctx.beginPath(); ctx.arc(ix, iy, ir, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(30,50,120,0.25)'; ctx.beginPath(); ctx.ellipse(ix, iy + ir * 1.9, ir * 1.6, ir * 0.7, 0.2, 0, 7); ctx.fill();
+
+  // years of students
+  decorateOldDesk(ctx, w, h, rnd);
+  ctx.save();
+  ctx.font = `700 ${40 * s}px Fredoka, sans-serif`;
+  const carve = (txt, x, y, rot, size = 1) => {
+    ctx.save(); ctx.translate(x * s, y * s); ctx.rotate(rot); ctx.scale(size, size);
+    ctx.fillStyle = 'rgba(255,230,195,0.22)'; ctx.fillText(txt, 1.5 * s, 1.5 * s);
+    ctx.fillStyle = 'rgba(60,30,10,0.45)'; ctx.fillText(txt, 0, 0);
+    ctx.restore();
+  };
+  carve('PEN FIGHT CHAMP', 70, 520, -0.06, 0.8);
+  carve('Roll 12', 1010, 470, 0.1, 0.7);
+  carve('★', 1080, 800, 0.2, 1.3);
+  // tic-tac-toe
+  ctx.strokeStyle = 'rgba(60,30,10,0.42)'; ctx.lineWidth = 3 * s; ctx.lineCap = 'round';
+  const tx = 980 * s, ty = 640 * s, ts = 22 * s;
+  ctx.beginPath();
+  ctx.moveTo(tx + ts, ty); ctx.lineTo(tx + ts, ty + ts * 3); ctx.moveTo(tx + ts * 2, ty); ctx.lineTo(tx + ts * 2, ty + ts * 3);
+  ctx.moveTo(tx, ty + ts); ctx.lineTo(tx + ts * 3, ty + ts); ctx.moveTo(tx, ty + ts * 2); ctx.lineTo(tx + ts * 3, ty + ts * 2);
+  ctx.moveTo(tx + 5 * s, ty + 5 * s); ctx.lineTo(tx + ts - 5 * s, ty + ts - 5 * s); ctx.moveTo(tx + ts - 5 * s, ty + 5 * s); ctx.lineTo(tx + 5 * s, ty + ts - 5 * s);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(tx + ts * 1.5, ty + ts * 1.5, ts * 0.32, 0, 7); ctx.stroke();
+  ctx.restore();
+
+  // the rounded front edge
+  const eh = 34 * s;
+  const eg = ctx.createLinearGradient(0, h - eh, 0, h);
+  eg.addColorStop(0, 'rgba(255,225,180,0.25)'); eg.addColorStop(0.25, 'rgba(255,225,180,0)'); eg.addColorStop(0.6, 'rgba(50,22,6,0.35)'); eg.addColorStop(1, 'rgba(30,12,2,0.75)');
+  ctx.fillStyle = eg; ctx.fillRect(0, h - eh, w, eh);
+
+  // varnish shine and a soft vignette
+  const sh = ctx.createLinearGradient(0, 0, w, h);
+  sh.addColorStop(0, 'rgba(255,245,220,0)'); sh.addColorStop(0.42, 'rgba(255,245,220,0.10)'); sh.addColorStop(0.5, 'rgba(255,245,220,0.02)'); sh.addColorStop(1, 'rgba(255,245,220,0)');
+  ctx.fillStyle = sh; ctx.fillRect(0, 0, w, h);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.72);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(30,12,2,0.45)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+
+  woodCache.set(key, c);
+  return c;
 }
 
 export { mulberry };

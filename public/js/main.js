@@ -6,7 +6,7 @@ import { sfx } from './audio.js';
 import { t, setLang, applyI18n, num } from './i18n.js';
 import { GameView } from './game.js';
 import { chooseShot } from './ai.js';
-import { makeWood, drawPen, drawPenShadow, penThumb } from './render.js';
+import { makeWood, makeSchoolDesk, drawPen, drawPenShadow, penThumb } from './render.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -61,6 +61,7 @@ async function api(path, body) {
 }
 
 // ---------- theme / settings ----------
+let bgDone = false;
 function applySettings() {
   const root = document.documentElement;
   if (S.theme === 'system') delete root.dataset.theme; else root.dataset.theme = S.theme;
@@ -76,8 +77,11 @@ function applySettings() {
   $$('#look-seg button').forEach((b) => b.classList.toggle('on', b.dataset.look === S.look));
   // background wood
   try {
-    const bg = makeWood('clean', 600, 360);
-    $('#bg').style.backgroundImage = `url(${bg.toDataURL('image/jpeg', 0.8)})`;
+    if (!bgDone) {
+      bgDone = true;
+      const paint = () => { $('#bg').style.backgroundImage = `url(${makeSchoolDesk().toDataURL('image/jpeg', 0.85)})`; };
+      (document.fonts ? document.fonts.ready : Promise.resolve()).then(paint, paint);
+    }
   } catch { /* ignore */ }
   refreshTexts();
 }

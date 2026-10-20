@@ -16,7 +16,7 @@
   --p2: #3f7fd0;
   --danger: #c8492c;
   --shadow: #2b3445;
-  --bg-tint: rgba(40, 26, 14, 0.42);
+  --bg-tint: rgba(40, 26, 14, 0.12);
   --radius: 22px;
   --font-h: 'Fredoka', 'Hind Siliguri', system-ui, sans-serif;
   --font-b: 'Nunito', 'Hind Siliguri', system-ui, sans-serif;
@@ -26,7 +26,7 @@
   :root:not([data-theme="light"]) {
     --text: #f3ead9; --muted: #b9ae9a; --label: #e2c27a;
     --card: #2d3344; --card-2: #373e52; --line: #4b5470;
-    --ink: #151923; --shadow: #10131a; --bg-tint: rgba(8, 10, 16, 0.62);
+    --ink: #151923; --shadow: #10131a; --bg-tint: rgba(8, 10, 16, 0.5);
     --blue: #3f6d99; --green: #4d6b3a; --yellow-d: #c9982a;
     color-scheme: dark;
   }
@@ -34,7 +34,7 @@
 :root[data-theme="dark"] {
   --text: #f3ead9; --muted: #b9ae9a; --label: #e2c27a;
   --card: #2d3344; --card-2: #373e52; --line: #4b5470;
-  --ink: #151923; --shadow: #10131a; --bg-tint: rgba(8, 10, 16, 0.62);
+  --ink: #151923; --shadow: #10131a; --bg-tint: rgba(8, 10, 16, 0.5);
   --blue: #3f6d99; --green: #4d6b3a; --yellow-d: #c9982a;
   color-scheme: dark;
 }
