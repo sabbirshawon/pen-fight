@@ -2,6 +2,8 @@
 
 The school desk game. Flick your pen to knock the other pen off the desk.
 
+**▶ Play now: https://pen-fight-cdx4.onrender.com**
+
 - **vs Computer**: three AI levels (Easy, Normal, Hard). The AI tests shots in the physics before it picks one.
 - **2 players**: two people on one device, taking turns.
 - **Online**: Quick match, or a private room with a 5-letter code and an invite link. Both players see the same aim live, there is a 30 s turn timer, quick reactions (emotes) and rematch.
@@ -53,7 +55,7 @@ public/
 
 ## Deploy
 
-The game needs a Node server for online play, for example Render, Railway, Fly.io or a VPS:
+The live game runs on Render. Any host that runs Node works, for example Render, Railway, Fly.io or a VPS:
 
 - Start command: `npm start`
 - `PORT` is read from the environment
