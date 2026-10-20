@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#7a5c3e">
+  <meta name="description" content="Pen Fight — the school desk game. Flick your pen, knock theirs off. Play vs Computer, with a friend, or online.">
+  <title>Pen Fight</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='6' y='28' width='52' height='9' rx='4.5' transform='rotate(-30 32 32)' fill='%23e8742c' stroke='%232b3445' stroke-width='3'/><rect x='6' y='28' width='52' height='9' rx='4.5' transform='rotate(25 32 32)' fill='%233f7fd0' stroke='%232b3445' stroke-width='3'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Hind+Siliguri:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="bg"></div>
+
+<!-- HOME -->
+<section class="screen active" id="s-home">
+  <button class="icon-btn corner" data-act="help" aria-label="How to play"><svg><use href="#i-help"/></svg></button>
+  <div class="home-wrap">
+    <h1 class="logo"><span class="w1">Pen</span> <span class="w2">Fight</span></h1>
+    <div class="ribbon" data-i18n="tagline">Tiffin break edition</div>
+    <canvas id="hero" width="520" height="260"></canvas>
+    <button class="btn btn-play" data-go="mode"><svg><use href="#i-play"/></svg><span data-i18n="play">Play</span></button>
+    <div class="muted small" id="home-played"></div>
+    <div class="home-row">
+      <button class="btn btn-tile" data-go="board"><svg><use href="#i-podium"/></svg><span data-i18n="leaderboard">Leaderboard</span></button>
+      <button class="btn btn-tile" data-go="stats"><svg><use href="#i-bars"/></svg><span data-i18n="stats">Stats</span></button>
+      <button class="btn btn-tile" data-act="settings"><svg><use href="#i-gear"/></svg><span data-i18n="settings">Settings</span></button>
+    </div>
+    <div class="muted tiny" id="online-now"></div>
+  </div>
+</section>
+
+<!-- MODE -->
+<section class="screen" id="s-mode">
+  <header class="top"><button class="icon-btn back" data-back aria-label="Back"><svg><use href="#i-back"/></svg></button><h2 data-i18n="whoPlaying">Who is playing?</h2></header>
+  <div class="mode-grid">
+    <button class="mode-card" data-mode="vsc">
+      <div class="mode-ico blue"><svg><use href="#i-bot"/></svg></div>
+      <h3 data-i18n="vsc">vs Computer</h3>
+      <p data-i18n="vscSub">You against the desk champion.</p>
+    </button>
+    <button class="mode-card" data-mode="two">
+      <div class="mode-ico green"><svg><use href="#i-two"/></svg></div>
+      <h3 data-i18n="two">2 players</h3>
+      <p data-i18n="twoSub">One device. Take turns to flick.</p>
+    </button>
+    <button class="mode-card" data-mode="online">
+      <div class="mode-ico yellow"><svg><use href="#i-globe"/></svg></div>
+      <h3 data-i18n="online">Online</h3>
+      <p data-i18n="onlineSub">Play a friend or anyone, anywhere.</p>
+      <span class="live-dot" id="mode-online-count"></span>
+    </button>
+  </div>
+</section>
+
+<!-- PICK PEN -->
+<section class="screen" id="s-pick">
+  <header class="top"><button class="icon-btn back" data-back aria-label="Back"><svg><use href="#i-back"/></svg></button><h2 data-i18n="pickPen">Pick your pen</h2><span class="chip mode-chip" id="pick-mode-chip"></span></header>
+  <div class="pick-grid">
+    <div class="card pen-card">
+      <div class="pen-card-top">
+        <span class="lv-badge" id="pen-lv">Lv1</span>
+        <div class="dots" id="pen-dots"></div>
+        <button class="icon-btn sm" id="pen-info-btn" aria-label="Pen info"><svg><use href="#i-info"/></svg></button>
+      </div>
+      <div class="pen-stage">
+        <canvas id="pen-preview"></canvas>
+        <button class="icon-btn arrow left" id="pen-prev" aria-label="Previous pen"><svg><use href="#i-left"/></svg></button>
+        <button class="icon-btn arrow right" id="pen-next" aria-label="Next pen"><svg><use href="#i-right"/></svg></button>
+      </div>
+      <h3 class="pen-name" id="pen-name"></h3>
+      <p class="muted" id="pen-desc"></p>
+      <div class="seg small-seg" id="look-seg">
+        <button data-look="classic" data-i18n="classic">Classic</button>
+        <button data-look="real" data-i18n="real">Real</button>
+      </div>
+    </div>
+
+    <div class="pick-side">
+      <!-- 2 players: who is picking -->
+      <div class="slots only-two">
+        <button class="slot active" data-slot="0"><span class="slot-dot p1"></span><span class="slot-name" id="slot-name-0">Player 1</span><span class="slot-pen" id="slot-pen-0"></span></button>
+        <button class="slot" data-slot="1"><span class="slot-dot p2"></span><span class="slot-name" id="slot-name-1">Player 2</span><span class="slot-pen" id="slot-pen-1"></span></button>
+      </div>
+      <div class="name-row">
+        <svg class="ico"><use href="#i-pencil"/></svg>
+        <input id="name-input" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your name">
+        <span class="only-two muted tiny" data-i18n="editName">tap to edit</span>
+      </div>
+      <div class="name-row only-two">
+        <svg class="ico"><use href="#i-pencil"/></svg>
+        <input id="name-input-2" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Player 2 name">
+      </div>
+
+      <div class="only-vsc">
+        <div class="label" data-i18n="computer">Computer</div>
+        <div class="seg big-seg" id="level-seg">
+          <button data-level="easy" data-i18n="easy">Easy</button>
+          <button data-level="normal" data-i18n="normal">Normal</button>
+          <button data-level="hard" data-i18n="hard">Hard</button>
+        </div>
+      </div>
+
+      <div class="not-online">
+        <div class="label" data-i18n="matchRules">Match rules</div>
+        <label class="rule" id="rule-equal">
+          <svg class="ico"><use href="#i-scale"/></svg>
+          <div><b data-i18n="equalLevels">Equal levels</b><small id="equal-sub"></small></div>
+          <input type="checkbox" class="switch" id="opt-equal">
+        </label>
+        <label class="rule only-vsc" id="rule-mirror">
+          <svg class="ico"><use href="#i-mirror"/></svg>
+          <div><b data-i18n="mirror">Mirror match</b><small data-i18n="mirrorSub">Both players use the same pen.</small></div>
+          <input type="checkbox" class="switch" id="opt-mirror">
+        </label>
+      </div>
+
+      <div class="rounds-row not-quick">
+        <span class="label" data-i18n="rounds">Rounds to win</span>
+        <div class="seg small-seg" id="rounds-seg">
+          <button data-rounds="1">1</button><button data-rounds="2">2</button><button data-rounds="3">3</button>
+        </div>
+      </div>
+
+      <button class="btn btn-play btn-fight not-online" id="btn-fight"><svg><use href="#i-play"/></svg><span data-i18n="fight">Fight</span></button>
+
+      <div class="only-online online-actions">
+        <button class="btn btn-play" id="btn-quick"><svg><use href="#i-bolt"/></svg><span data-i18n="quickMatch">Quick match</span></button>
+        <div class="online-row">
+          <button class="btn btn-tile wide" id="btn-create"><svg><use href="#i-plus"/></svg><span data-i18n="createRoom">Create room</span></button>
+          <div class="join-box">
+            <input id="join-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Room code">
+            <button class="btn btn-tile" id="btn-join" data-i18n="join">Join</button>
+          </div>
+        </div>
+        <div class="muted tiny center" id="online-status"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WAITING (online) -->
+<section class="screen" id="s-wait">
+  <header class="top"><button class="icon-btn back" id="wait-back" aria-label="Back"><svg><use href="#i-back"/></svg></button><h2 data-i18n="online">Online</h2></header>
+  <div class="card wait-card">
+    <div class="spinner"><span></span><span></span></div>
+    <h3 id="wait-title"></h3>
+    <div id="wait-room" class="hidden">
+      <p class="muted" data-i18n="shareCode">Share this code with your friend</p>
+      <div class="room-code" id="room-code">-----</div>
+      <div class="online-row">
+        <button class="btn btn-tile wide" id="btn-copy-link"><svg><use href="#i-link"/></svg><span data-i18n="copyLink">Copy invite link</span></button>
+        <button class="btn btn-tile wide" id="btn-share"><svg><use href="#i-share"/></svg><span data-i18n="share">Share</span></button>
+      </div>
+    </div>
+    <p class="muted small" id="wait-sub"></p>
+  </div>
+</section>
+
+<!-- GAME -->
+<section class="screen" id="s-game">
+  <canvas id="game"></canvas>
+  <div class="hud">
+    <div class="hud-score" id="hud-score">
+      <span class="hs-name" id="hs-n0">You</span><span class="hs-val p1" id="hs-v0">0</span>
+      <span class="hs-sep">·</span>
+      <span class="hs-name" id="hs-n1">Computer</span><span class="hs-val p2" id="hs-v1">0</span>
+      <div class="hs-round" id="hs-round"></div>
+    </div>
+    <div class="hud-turn" id="hud-turn"><svg class="ring" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="ring-bg"/><circle cx="18" cy="18" r="15" class="ring-fg" id="turn-ring"/></svg><span id="turn-text"></span></div>
+    <button class="icon-btn hud-pause" id="btn-pause" aria-label="Pause"><svg><use href="#i-pause"/></svg></button>
+  </div>
+  <div class="power" id="power"><div class="power-fill" id="power-fill"></div><span id="power-val">0%</span></div>
+  <div class="banner" id="banner"></div>
+  <div class="emotes only-online-game" id="emotes">
+    <button class="icon-btn emote-toggle" id="emote-toggle" aria-label="Reactions">😊</button>
+    <div class="emote-list" id="emote-list"></div>
+  </div>
+</section>
+
+<!-- LEADERBOARD -->
+<section class="screen" id="s-board">
+  <header class="top"><button class="icon-btn back" data-back aria-label="Back"><svg><use href="#i-back"/></svg></button><h2 data-i18n="leaderboard">Leaderboard</h2></header>
+  <div class="narrow">
+    <div class="seg tabs" id="board-tabs">
+      <button data-tab="vsc" data-i18n="vsc">vs Computer</button>
+      <button data-tab="two" data-i18n="two">2 players</button>
+      <button data-tab="online" data-i18n="online">Online</button>
+    </div>
+    <div class="card scroll" id="board-body"></div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="screen" id="s-stats">
+  <header class="top"><button class="icon-btn back" data-back aria-label="Back"><svg><use href="#i-back"/></svg></button><h2 data-i18n="stats">Stats</h2></header>
+  <div class="narrow">
+    <div class="seg tabs" id="stats-tabs">
+      <button data-tab="me"><svg><use href="#i-pencil"/></svg><span data-i18n="me">Me</span></button>
+      <button data-tab="world"><svg><use href="#i-globe"/></svg><span data-i18n="world">World</span></button>
+    </div>
+    <div class="card scroll" id="stats-body"></div>
+  </div>
+</section>
+
+<!-- MODALS -->
+<div class="modal" id="m-settings" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><span class="sheet-ico"><svg><use href="#i-gear"/></svg></span><h2 data-i18n="makeYours">Make it yours</h2><button class="icon-btn close" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body">
+      <div class="label" data-i18n="screen">Screen</div>
+      <div class="field-name" data-i18n="theme">Theme</div>
+      <div class="seg chips" data-setting="theme">
+        <button data-v="system" data-i18n="system">System</button><button data-v="light" data-i18n="light">Light</button><button data-v="dark" data-i18n="dark">Dark</button>
+      </div>
+      <div class="field-name" data-i18n="language">Language</div>
+      <div class="seg chips" data-setting="lang">
+        <button data-v="bn">বাংলা</button><button data-v="en">English</button>
+      </div>
+      <div class="field-name" data-i18n="desk">Desk</div>
+      <div class="desk-pick" data-setting="desk">
+        <button data-v="clean"><canvas class="desk-thumb" data-desk="clean" width="150" height="70"></canvas><span data-i18n="cleanDesk">Clean desk</span></button>
+        <button data-v="old"><canvas class="desk-thumb" data-desk="old" width="150" height="70"></canvas><span data-i18n="oldDesk">Old school desk</span></button>
+      </div>
+      <div class="field-name" data-i18n="penLook">Pen look</div>
+      <div class="seg chips" data-setting="look">
+        <button data-v="classic" data-i18n="classic">Classic</button><button data-v="real" data-i18n="real">Real</button>
+      </div>
+      <hr>
+      <div class="label" data-i18n="playLabel">Play</div>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-aim"/></svg></span><div><b data-i18n="aimGuide">Aim guide</b><small data-i18n="aimGuideSub">Arrow, path and spin. Off keeps the power bar.</small></div><input type="checkbox" class="switch" data-toggle="aim"></label>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-sound"/></svg></span><div><b data-i18n="sound">Sound</b><small data-i18n="soundSub">Clicks, hits and cheers.</small></div><input type="checkbox" class="switch" data-toggle="sound"></label>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-wave"/></svg></span><div><b data-i18n="reduceMotion">Reduce motion</b><small data-i18n="reduceMotionSub">No shake, zoom or moving effects.</small></div><input type="checkbox" class="switch" data-toggle="reduceMotion"></label>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-phone"/></svg></span><div><b data-i18n="vibration">Vibration</b><small data-i18n="vibrationSub">A light buzz while you pull.</small></div><input type="checkbox" class="switch" data-toggle="vibration"></label>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-repeat"/></svg></span><div><b data-i18n="autoNext">Automatic next match</b><small data-i18n="autoNextSub">Starts 5 seconds after a win.</small></div><input type="checkbox" class="switch" data-toggle="autoNext"></label>
+      <label class="toggle-row"><span class="t-ico"><svg><use href="#i-full"/></svg></span><div><b data-i18n="fullscreen">Full screen</b><small data-i18n="fullscreenSub">Fills the screen. Esc leaves it.</small></div><input type="checkbox" class="switch" id="toggle-fullscreen"></label>
+      <hr>
+      <div class="label" data-i18n="progress">Progress</div>
+      <div class="online-row">
+        <button class="btn btn-tile wide" id="btn-backup"><svg><use href="#i-share"/></svg><span data-i18n="backup">Back up progress</span></button>
+        <button class="btn btn-tile wide" id="btn-restore"><svg><use href="#i-repeat"/></svg><span data-i18n="restore">Restore</span></button>
+      </div>
+      <button class="btn btn-tile wide danger" id="btn-reset"><span data-i18n="resetAll">Reset all progress</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="m-help" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="sheet-head"><span class="sheet-ico"><svg><use href="#i-help"/></svg></span><h2 data-i18n="howToPlay">How to play</h2><button class="icon-btn close" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body" id="help-body"></div>
+  </div>
+</div>
+
+<div class="modal" id="m-pause" role="dialog" aria-modal="true">
+  <div class="sheet small">
+    <div class="sheet-head"><span class="sheet-ico"><svg><use href="#i-pause"/></svg></span><h2 data-i18n="paused">Paused</h2><button class="icon-btn close" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body stack">
+      <button class="btn btn-play" data-close><svg><use href="#i-play"/></svg><span data-i18n="resume">Resume</span></button>
+      <button class="btn btn-tile wide not-online-game" id="btn-restart"><svg><use href="#i-repeat"/></svg><span data-i18n="restart">Restart match</span></button>
+      <button class="btn btn-tile wide" data-act="settings"><svg><use href="#i-gear"/></svg><span data-i18n="settings">Settings</span></button>
+      <button class="btn btn-tile wide" data-act="help"><svg><use href="#i-help"/></svg><span data-i18n="howToPlay">How to play</span></button>
+      <button class="btn btn-tile wide danger" id="btn-quit"><svg><use href="#i-back"/></svg><span data-i18n="quit">Quit to menu</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="m-result" role="dialog" aria-modal="true">
+  <div class="sheet small result">
+    <div class="result-ico" id="result-ico"></div>
+    <h2 id="result-title"></h2>
+    <p class="muted" id="result-sub"></p>
+    <div class="result-stats" id="result-stats"></div>
+    <div class="stack">
+      <button class="btn btn-play" id="btn-rematch"><svg><use href="#i-repeat"/></svg><span id="rematch-text" data-i18n="rematch">Rematch</span></button>
+      <div class="online-row">
+        <button class="btn btn-tile wide" id="btn-change-pen"><svg><use href="#i-pencil"/></svg><span data-i18n="changePen">Change pen</span></button>
+        <button class="btn btn-tile wide" id="btn-menu"><svg><use href="#i-home"/></svg><span data-i18n="menu">Menu</span></button>
+      </div>
+    </div>
+    <div class="muted tiny" id="auto-next"></div>
+  </div>
+</div>
+
+<div class="modal" id="m-info" role="dialog" aria-modal="true">
+  <div class="sheet small">
+    <div class="sheet-head"><span class="sheet-ico"><svg><use href="#i-info"/></svg></span><h2 id="info-title"></h2><button class="icon-btn close" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body" id="info-body"></div>
+  </div>
+</div>
+
+<div class="modal" id="m-text" role="dialog" aria-modal="true">
+  <div class="sheet small">
+    <div class="sheet-head"><span class="sheet-ico"><svg><use href="#i-share"/></svg></span><h2 id="text-title"></h2><button class="icon-btn close" data-close aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="sheet-body stack">
+      <p class="muted small" id="text-sub"></p>
+      <textarea id="text-area" rows="6" spellcheck="false"></textarea>
+      <button class="btn btn-play" id="text-ok"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ICONS -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M10 5 3.5 12 10 19v-4h9V9h-9z" fill="var(--yellow)" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--yellow)" stroke="currentColor" stroke-width="2"/><path d="M9.3 9.4a2.8 2.8 0 1 1 3.8 2.6c-.8.3-1.1.9-1.1 1.7v.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17.3" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-podium" viewBox="0 0 24 24"><path d="M2.5 21v-6h6v6m0 0v-10h7v10m0 0v-7.5h6V21z" fill="var(--blue)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m12 3 1.1 2.2 2.4.3-1.8 1.6.5 2.4-2.2-1.2-2.2 1.2.5-2.4-1.8-1.6 2.4-.3z" fill="var(--orange)" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><rect x="3" y="13" width="4.5" height="8" rx="1" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8"/><rect x="9.8" y="8" width="4.5" height="13" rx="1" fill="var(--blue)" stroke="currentColor" stroke-width="1.8"/><rect x="16.5" y="3" width="4.5" height="18" rx="1" fill="var(--green)" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.3 2.5h3.4l.5 2.6 1.6.9 2.5-.9 1.7 2.9-2 1.8v1.9l2 1.7-1.7 3-2.5-.9-1.6.9-.5 2.6h-3.4l-.5-2.6-1.6-.9-2.5.9-1.7-3 2-1.7V9.8l-2-1.8 1.7-2.9 2.5.9 1.6-.9z" fill="var(--green)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M5 21v-1.5a7 7 0 0 1 14 0V21" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9" r="6" fill="#f3d7b8" stroke="currentColor" stroke-width="1.8"/><path d="M6.2 7.8a6 6 0 0 1 11.6 0C15 6.5 9 6.5 6.2 7.8z" fill="var(--orange)" stroke="currentColor" stroke-width="1.5"/><circle cx="9.5" cy="9.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="14.5" cy="9.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M11.3 9.8h1.4M10 13c1.2.8 2.8.8 4 0" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-two" viewBox="0 0 24 24"><circle cx="16" cy="8.5" r="3.6" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/><path d="M11 20v-1.2a5 5 0 0 1 10 0V20z" fill="var(--blue)" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="8" r="4" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/><path d="M5.2 6.6a4 4 0 0 1 7.6 0c-2-.8-5.6-.8-7.6 0z" fill="var(--orange)" stroke="currentColor" stroke-width="1.3"/><path d="M3 20.5v-1.5a6 6 0 0 1 12 0v1.5z" fill="var(--green)" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--blue)" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 12h19M12 2.5c3 3.2 3 15.8 0 19M12 2.5c-3 3.2-3 15.8 0 19M4.5 6.5h15M4.5 17.5h15" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="m15.5 3.5 5 5L9 20l-6 1.2L4.2 15z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m13 6 5 5" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--blue)" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 4.5 7.5 12l7.5 7.5" fill="none" stroke="var(--yellow-d)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 4.5 7.5 12l7.5 7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 4.5 7.5 7.5L9 19.5" fill="none" stroke="var(--yellow-d)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="m9 4.5 7.5 7.5L9 19.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v17M6 20h12M4 6h16M6.5 6 3.5 13a3 3 0 0 0 6 0zM17.5 6l-3 7a3 3 0 0 0 6 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mirror" viewBox="0 0 24 24"><path d="M12 2v20" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2"/><path d="m3 5 6 12 1-6zM21 5l-6 12-1-6z" fill="var(--blue)" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2 4.5 13.5h6L9.5 22l9-11.5h-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5" fill="var(--green)" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3.5-3.5a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3.5 3.5a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.8" fill="var(--yellow)" stroke="currentColor" stroke-width="1.7"/><circle cx="6" cy="12" r="2.8" fill="var(--blue)" stroke="currentColor" stroke-width="1.7"/><circle cx="18" cy="18.5" r="2.8" fill="var(--green)" stroke="currentColor" stroke-width="1.7"/><path d="m8.5 10.7 7-3.9M8.5 13.3l7 3.9" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="5.5" y="4" width="4.5" height="16" rx="1.5" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="4" width="4.5" height="16" rx="1.5" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--card-2)" stroke="currentColor" stroke-width="1.8"/><path d="m8.5 8.5 7 7m0-7-7 7" stroke="var(--orange)" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-aim" viewBox="0 0 24 24"><circle cx="16" cy="8" r="4.5" fill="var(--blue)" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="8" r="1.5" fill="currentColor"/><path d="M12.5 11.5 3.5 20.5" stroke="currentColor" stroke-width="1.8" stroke-dasharray="2.5 2" stroke-linecap="round"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M3.5 9.5h4l5-4.5v14l-5-4.5h-4z" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="4" fill="var(--blue)" stroke="currentColor" stroke-width="1.7"/><path d="M6 10c2-2 4 2 6 0s4-2 6 0M6 14.5c2-2 4 2 6 0s4-2 6 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7.5" y="3" width="9" height="18" rx="2.5" fill="var(--blue)" stroke="currentColor" stroke-width="1.7"/><path d="M4.5 8v8M2 10v4M19.5 8v8M22 10v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.1-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17.5 2.5V7h-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M3.5 9V3.5H9M15 3.5h5.5V9M20.5 15v5.5H15M9 20.5H3.5V15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 3.5l8.5 7.5V20a1 1 0 0 1-1 1H15v-6h-6v6H4.5a1 1 0 0 1-1-1z" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 3.5h10v5a5 5 0 0 1-10 0z" fill="var(--yellow)" stroke="currentColor" stroke-width="1.8"/><path d="M7 5.5H3.5a3.5 3.5 0 0 0 4 4M17 5.5h3.5a3.5 3.5 0 0 1-4 4M12 13.5V17M8 20.5h8l-1-3.5H9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8.5" fill="var(--card)" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.5V13l3 2M10 2.5h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 2.5c1 3.5 6 6 6 11a6 6 0 0 1-12 0c0-2.8 1.6-4.4 3-5.5.2 1.8 1 3 2 3.5-.5-3.5.2-6.5 1-9z" fill="var(--orange)" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 21a2.8 2.8 0 0 1-2.8-2.8c0-1.6 1.6-2.4 2.8-4 1.2 1.6 2.8 2.4 2.8 4A2.8 2.8 0 0 1 12 21z" fill="var(--yellow)"/></symbol>
+    <symbol id="i-lose" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--card-2)" stroke="currentColor" stroke-width="1.8"/><path d="m8.5 8.5 7 7m0-7-7 7" stroke="var(--orange)" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="var(--green)" stroke="currentColor" stroke-width="1.8"/><path d="m7.5 12.5 3 3 6-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><use href="#i-two"/></symbol>
+  </defs>
+</svg>
+
+<script src="/vendor/matter.min.js"></script>
+<script src="/socket.io/socket.io.js" onerror="window.__noSocket=true"></script>
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
