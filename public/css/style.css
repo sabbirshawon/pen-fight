@@ -259,6 +259,9 @@ html[lang="bn"] .ribbon { letter-spacing: 0; font-size: 16px; }
 .emote-list.open { display: flex; }
 .emote-list button { border: none; background: transparent; font-size: 26px; padding: 4px; border-radius: 10px; }
 .emote-list button:hover { background: var(--card-2); }
+.emote-list { flex-wrap: wrap; justify-content: flex-end; max-width: min(600px, calc(100vw - 90px)); }
+.emote-list button.phrase { font-size: 15px; font-weight: 800; color: var(--ink); background: var(--card-2); padding: 8px 12px; white-space: nowrap; }
+.emote-float.phrase { font-size: 22px; font-weight: 800; color: #2b3445; background: #fff8ea; border: 2.5px solid #2b3445; border-radius: 18px; padding: 8px 16px; white-space: nowrap; box-shadow: 0 4px 0 rgba(43,52,69,.35); }
 .emote-float { position: absolute; font-size: 54px; pointer-events: none; z-index: 5; animation: floatUp 2s ease-out forwards; }
 @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0) scale(.4); } 15% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -140px) scale(1); } }
 .online-game .not-online-game { display: none; }

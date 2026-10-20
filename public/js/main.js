@@ -804,11 +804,15 @@ function sendAim(aim) {
 }
 
 const EMOTES = ['👍', '😂', '😮', '😡', '🔥', '👏'];
+// quick phrases go over the wire as ids, so each player reads them in their own language
+const PHRASES = ['nice', 'gg', 'oops'];
+const emoteText = (e) => (PHRASES.includes(e) ? t('q_' + e) : e);
 function renderEmotes() {
-  $('#emote-list').innerHTML = EMOTES.map((e) => `<button>${e}</button>`).join('');
+  $('#emote-list').innerHTML = PHRASES.map((e) => `<button class="phrase" data-e="${e}">${emoteText(e)}</button>`).join('')
+    + EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');
   $$('#emote-list button').forEach((b) => b.addEventListener('click', () => {
-    net.emit('emote', b.textContent);
-    showEmote(b.textContent, M ? M.you : 0);
+    net.emit('emote', b.dataset.e);
+    showEmote(b.dataset.e, M ? M.you : 0);
     $('#emote-list').classList.remove('open');
   }));
 }
@@ -816,8 +820,8 @@ $('#emote-toggle').addEventListener('click', () => $('#emote-list').classList.to
 function showEmote(e, from) {
   if (!M) return;
   const el = document.createElement('div');
-  el.className = 'emote-float';
-  el.textContent = e;
+  el.className = 'emote-float' + (PHRASES.includes(e) ? ' phrase' : '');
+  el.textContent = emoteText(e);
   const mine = from === M.you;
   el.style.left = mine ? '30%' : '70%';
   el.style.top = '60%';

@@ -19,6 +19,7 @@ const en = {
   changePen: 'Change pen', menu: 'Menu',
 
   you: 'You', computerName: 'Computer', player1: 'Player 1', player2: 'Player 2',
+  q_nice: 'Nice shot!', q_gg: 'GG', q_oops: 'Oops!',
   yourTurn: 'Your turn', turnOf: "{name}'s turn", thinking: 'Computer is thinking…', aiming: '{name} is aiming…',
   youWin: 'You won!', nameWon: '{name} won', winsP: '{name} wins!', roundWin: '{name} takes the round',
   roundYou: 'You take the round!', roundDraw: 'Both fell!', roundDrawSub: 'Replay the round', deskShrinks: 'The desk shrinks!',
@@ -83,6 +84,7 @@ const bn = {
   changePen: 'কলম বদলাও', menu: 'মেনু',
 
   you: 'তুমি', computerName: 'কম্পিউটার', player1: 'খেলোয়াড় ১', player2: 'খেলোয়াড় ২',
+  q_nice: 'দারুণ শট!', q_gg: 'GG', q_oops: 'উফ!',
   yourTurn: 'তোমার পালা', turnOf: '{name}-এর পালা', thinking: 'কম্পিউটার ভাবছে…', aiming: '{name} নিশানা করছে…',
   youWin: 'তুমি জিতেছ!', nameWon: '{name} জিতেছে', winsP: '{name} জিতেছে!', roundWin: 'রাউন্ড {name}-এর',
   roundYou: 'রাউন্ড তোমার!', roundDraw: 'দুটোই পড়ে গেছে!', roundDrawSub: 'রাউন্ড আবার হবে', deskShrinks: 'বেঞ্চ ছোট হচ্ছে!',
