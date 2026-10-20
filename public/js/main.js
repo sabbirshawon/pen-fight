@@ -804,9 +804,10 @@ function sendAim(aim) {
 }
 
 const EMOTES = ['👍', '😂', '😮', '😡', '🔥', '👏'];
-// quick phrases go over the wire as ids, so each player reads them in their own language
-const PHRASES = ['nice', 'gg', 'oops'];
-const emoteText = (e) => (PHRASES.includes(e) ? t('q_' + e) : e);
+// quick phrases go over the wire as ids; the other player sees exactly the words that were picked
+const PHRASE_TEXT = { nice: 'Nice shot!', gg: 'GG', oops: 'Oops!', bnNice: 'দারুণ শট!', bnLucky: 'কপাল ভালো!', bnOops: 'উফ!', bnAgain: 'আবার হবে?' };
+const PHRASES = Object.keys(PHRASE_TEXT);
+const emoteText = (e) => PHRASE_TEXT[e] || e;
 function renderEmotes() {
   $('#emote-list').innerHTML = PHRASES.map((e) => `<button class="phrase" data-e="${e}">${emoteText(e)}</button>`).join('')
     + EMOTES.map((e) => `<button data-e="${e}">${e}</button>`).join('');

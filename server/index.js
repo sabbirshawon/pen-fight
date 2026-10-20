@@ -279,7 +279,7 @@ io.on('connection', (socket) => {
     const room = rooms.get(socket.data.room);
     if (!room) return;
     const idx = room.players.findIndex((p) => p.socket === socket);
-    const ok = ['👍', '😂', '😮', '😡', '🔥', '👏', 'nice', 'gg', 'oops'];
+    const ok = ['👍', '😂', '😮', '😡', '🔥', '👏', 'nice', 'gg', 'oops', 'bnNice', 'bnLucky', 'bnOops', 'bnAgain'];
     if (ok.includes(e)) socket.to(room.code).emit('emote', { from: idx, e });
   });
 
