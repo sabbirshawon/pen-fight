@@ -373,11 +373,15 @@ export class GameView {
   _camera() {
     const reduce = this.hooks.settings().reduceMotion;
     const z = reduce ? 1 : clamp(this.deskVis * 1.05, 0.62, 1);
-    const top = this.cw < 760 ? 100 : 64;
+    // short landscape (phones): HUD sits at the sides, so the desk takes the full height
+    const short = this.ch < 520 && this.cw > this.ch;
+    const top = short ? 0 : this.cw < 760 ? 100 : 64;
+    const side = short ? Math.min(100, this.cw * 0.12) : 0;
+    const pad = Math.min(this.cw, this.ch) < 600 ? 44 : 120;
     const rot = this.ch - top > this.cw * 1.15 ? Math.PI / 2 : 0;
-    let vw = DESK_W * z + 120, vh = DESK_H * z + 120;
+    let vw = DESK_W * z + pad, vh = DESK_H * z + pad;
     if (rot) [vw, vh] = [vh, vw];
-    const s = Math.min(this.cw / vw, (this.ch - top) / vh);
+    const s = Math.min((this.cw - side * 2) / vw, (this.ch - top) / vh);
     this.cam = { s, ox: this.cw / 2, oy: top / 2 + this.ch / 2, rot };
   }
 

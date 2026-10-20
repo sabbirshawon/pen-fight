@@ -131,7 +131,32 @@ function onEnter(name) {
   if (name === 'board') renderBoard();
   if (name === 'stats') renderStats();
   if (name !== 'game') { view.stop(); }
+  landscape(name === 'game');
 }
+
+// ---------- phones: full screen + landscape while a match is on ----------
+// Needs a tap, so if the first try is blocked (online match started by the server)
+// it tries again on the next tap. iPhone has no lock API and keeps the turned desk.
+const isPhone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
+let wantLand = false, landRetry = false;
+function landscape(on) {
+  wantLand = on && isPhone;
+  if (wantLand) { landRetry = !tryLandscape(); return; }
+  landRetry = false;
+  try { screen.orientation?.unlock?.(); } catch { /* not supported */ }
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+function tryLandscape() {
+  const el = document.documentElement;
+  if (!el.requestFullscreen) return true;
+  if (navigator.userActivation && !navigator.userActivation.isActive) return false;
+  const p = document.fullscreenElement ? Promise.resolve() : el.requestFullscreen({ navigationUI: 'hide' });
+  p.then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+  return true;
+}
+document.addEventListener('pointerup', () => {
+  if (wantLand && landRetry) landRetry = !tryLandscape();
+}, true);
 
 $$('[data-go]').forEach((b) => b.addEventListener('click', () => { sfx.click(); go(b.dataset.go); }));
 $$('[data-back]').forEach((b) => b.addEventListener('click', () => { sfx.click(); back(); }));

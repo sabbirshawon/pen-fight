@@ -223,6 +223,7 @@ html[lang="bn"] .ribbon { letter-spacing: 0; font-size: 16px; }
 #game { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
 .hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 0 max(10px, env(safe-area-inset-left)); pointer-events: none; z-index: 3; }
 .hud > * { pointer-events: auto; }
+.hud > .hud-score, .hud > .hud-turn { pointer-events: none; }
 .hud-score, .hud-turn { background: var(--card); border: 2px solid rgba(43,52,69,.15); border-radius: 16px; padding: 7px 12px; display: flex; align-items: center; gap: 7px; box-shadow: 0 3px 10px rgba(0,0,0,.18); font-size: 15px; flex-wrap: wrap; }
 .hud-score { max-width: 46vw; }
 .hs-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -388,5 +389,35 @@ textarea { width: 100%; border: 2.5px solid var(--ink); border-radius: 14px; bac
   #hero { display: none; }
   .logo { font-size: 64px; }
   .home-wrap > .btn-play, .home-row { width: min(420px, 100%); }
-  .hud-turn { top: max(10px, env(safe-area-inset-top)); }
+  /* in game: score on the left, turn and pause on the right, desk in the middle */
+  .hud-score { flex-direction: column; align-items: stretch; gap: 3px; font-size: 12px; padding: 6px 8px; max-width: 18vw; flex-wrap: nowrap; }
+  .hud-score .hs-sep { display: none; }
+  .hs-name { max-width: 100%; }
+  .hs-round { position: static; flex-direction: column; gap: 0; font-size: 10px; }
+  .hud-turn { left: auto; right: max(10px, env(safe-area-inset-right)); transform: none; top: calc(max(10px, env(safe-area-inset-top)) + 54px); font-size: 12px; padding: 6px 8px; white-space: normal; max-width: 18vw; flex-direction: column; text-align: center; gap: 4px; }
+  .hud-pause { width: 42px; height: 42px; }
+  .power { width: min(240px, 40vw); height: 22px; bottom: max(8px, env(safe-area-inset-bottom)); }
+  .banner { font-size: clamp(30px, 6vw, 56px); }
+  /* menus: use the width, keep things short */
+  .screen { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .top { margin: 0 0 10px; }
+  .top h2 { font-size: 24px; }
+  .mode-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .mode-card { display: flex; flex-direction: column; text-align: center; padding: 14px 10px; gap: 4px; }
+  .mode-card .mode-ico { width: 58px; height: 58px; }
+  .mode-card .mode-ico svg { width: 40px; height: 40px; }
+  .mode-card h3 { font-size: 22px; margin: 4px 0 0; align-self: auto; }
+  .mode-card p { font-size: 13px; align-self: auto; }
+  .mode-card .live-dot { position: static; justify-content: center; font-size: 12px; }
+  .pick-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 0; }
+  .pen-card { padding: 10px; gap: 4px; }
+  .pen-stage { aspect-ratio: 16 / 8; }
+  .pen-name { font-size: 22px; margin: 2px 0 0; }
+  .pen-card p { font-size: 13px; margin: 0 0 2px; }
+  .rule { padding: 8px 12px; margin-bottom: 8px; }
+  .rule .ico { width: 28px; height: 28px; }
+  .rule b { font-size: 16px; }
+  .rule small { font-size: 12px; }
+  .rounds-row { margin: 2px 0 6px; }
+  .btn-fight { font-size: 26px; padding: 12px; margin-top: 2px; }
 }
