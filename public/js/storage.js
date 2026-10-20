@@ -38,7 +38,12 @@ function merge(base, extra) {
 }
 
 let data = defaults();
-try { data = merge(defaults(), JSON.parse(localStorage.getItem(KEY) || 'null')); } catch { /* storage blocked */ }
+try {
+  const saved = localStorage.getItem(KEY);
+  data = merge(defaults(), JSON.parse(saved || 'null'));
+  // keep the same id from the first visit, so a refresh can take back an online seat
+  if (!saved) localStorage.setItem(KEY, JSON.stringify(data));
+} catch { /* storage blocked */ }
 
 export const store = {
   get data() { return data; },

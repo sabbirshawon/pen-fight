@@ -212,6 +212,13 @@ function removePlayer(room, p, reason) {
   room.players[0].socket && room.players[0].socket.emit('room:waiting', { code: room.code, players: publicPlayers(room) });
 }
 
+function syncInfo(room, idx) {
+  return {
+    you: idx, players: publicPlayers(room), state: snapshot(room.match), turnSeconds: RULES.turnSeconds,
+    turn: room.match.turn, deadline: room.turnDeadline, now: Date.now(),
+  };
+}
+
 function joinRoom(socket, room, info) {
   room.players.push({ socket, name: cleanName(info.name), pen: validPen(info.pen), clientId: cleanId(info.clientId) });
   socket.data.room = room.code;
@@ -263,12 +270,16 @@ io.on('connection', (socket) => {
 
   socket.on('quick:cancel', () => { queue = queue.filter((s) => s !== socket); });
 
-  socket.on('shot', (shot) => {
+  // the answer tells the client when its picture of the match is out of date
+  socket.on('shot', (shot, ack) => {
+    const reply = typeof ack === 'function' ? ack : () => {};
     const room = rooms.get(socket.data.room);
-    if (!room || !room.match) return;
+    if (!room || !room.match) return reply({ ok: false, lost: true });
     const idx = room.players.findIndex((p) => p.socket === socket);
-    if (idx !== room.match.turn) return;
+    if (idx < 0) return reply({ ok: false, lost: true });
+    if (idx !== room.match.turn || room.match.over || room.match.roundOver) return reply({ ok: false, ...syncInfo(room, idx) });
     doShot(room, idx, shot);
+    reply({ ok: true });
   });
 
   // live aim so the other player can watch the pull
@@ -305,15 +316,17 @@ io.on('connection', (socket) => {
   socket.on('room:rejoin', (info = {}, ack) => {
     const room = rooms.get(String(info.code || '').toUpperCase().trim());
     const id = cleanId(info.clientId);
-    const p = room && room.match && !room.match.over && id && room.players.find((q) => q.clientId === id && !q.socket);
+    const p = room && room.match && !room.match.over && id && room.players.find((q) => q.clientId === id && q.socket !== socket);
     if (!p) return ack && ack({ ok: false });
     clearTimeout(p.graceTimer);
+    // after a refresh the old connection may not have closed yet
+    if (p.socket) { p.socket.data.room = null; p.socket.leave(room.code); }
     leaveRoom(socket);
     p.socket = socket;
     socket.data.room = room.code;
     socket.join(room.code);
     socket.to(room.code).emit('opponent:back');
-    ack && ack({ ok: true, you: room.players.indexOf(p), state: snapshot(room.match), turn: room.match.turn, deadline: room.turnDeadline, now: Date.now() });
+    ack && ack({ ok: true, ...syncInfo(room, room.players.indexOf(p)) });
   });
 
   socket.on('disconnect', () => {

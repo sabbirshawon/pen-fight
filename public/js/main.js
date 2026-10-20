@@ -458,6 +458,29 @@ const view = new GameView($('#game'), {
 
 let M = null; // current match session
 
+// ---------- resume after a page refresh (this tab only) ----------
+const RESUME_KEY = 'penfight.resume';
+function saveResume() {
+  if (!M || M.match.over) { clearResume(); return; }
+  const r = M.mode === 'online'
+    ? { mode: 'online', code: M.code }
+    : { mode: M.mode, level: M.level, players: M.players, startedAt: M.startedAt, practice: M.practice, state: snapshot(M.match) };
+  try { sessionStorage.setItem(RESUME_KEY, JSON.stringify(r)); } catch { /* storage blocked */ }
+}
+function clearResume() { try { sessionStorage.removeItem(RESUME_KEY); } catch { /* ignore */ } }
+function readResume() { try { return JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null'); } catch { return null; } }
+
+function resumeOffline(r) {
+  const match = restore(r.state);
+  M = { id: Math.random(), mode: r.mode, level: r.level, match, players: r.players, startedAt: r.startedAt, practice: !!r.practice };
+  if (match.roundOver) { startNextRound(match); saveResume(); }
+  view.setMatch(snapshot(match), match.stats, M.players);
+  enterGame(false);
+  updateHud();
+  banner(t('roundN', { n: num(match.round) }));
+  setTimeout(() => nextTurn(M), 900);
+}
+
 function banner(text, sub) {
   const el = $('#banner');
   el.innerHTML = esc(text) + (sub ? `<small>${esc(sub)}</small>` : '');
@@ -527,6 +550,7 @@ function startOffline(opts = {}) {
   }
   const match = createMatch({ penIds, levels, roundsToWin: opts.practice ? 1 : D.rounds, starter: mode === 'vsc' ? 0 : Math.random() < 0.5 ? 0 : 1 });
   M = { id: Math.random(), mode, level, match, players, startedAt: Date.now(), practice: !!opts.practice };
+  saveResume();
   view.setMatch(snapshot(match), match.stats, players);
   enterGame(false);
   updateHud();
@@ -565,7 +589,12 @@ function onLocalShot(shot) {
   if (M.mode === 'online') {
     if (M.match.turn !== M.you) return;
     view.setInput(-1);
-    net.emit('shot', shot);
+    const s = M;
+    socket.timeout(5000).emit('shot', shot, (err, r) => {
+      if (M !== s || s.match.over) return;
+      if (err || (r && r.lost)) { reconnectSeat(); return; }
+      if (r && !r.ok && r.state) queue(() => resync(r));
+    });
     return;
   }
   runLocalShot(M, M.match.turn, shot);
@@ -575,6 +604,7 @@ async function runLocalShot(session, player, shot) {
   view.setInput(-1);
   let res;
   try { res = playShot(session.match, player, shot); } catch { return; }
+  saveResume();
   await view.play(res);
   if (M !== session) return;
   await afterShot(session, res);
@@ -596,6 +626,7 @@ async function afterShot(session, res) {
   if (res.matchOver) { endMatch(session); return; }
   if (session.mode === 'online') return; // the server starts the next round
   startNextRound(session.match);
+  saveResume();
   view.setState(snapshot(session.match));
   updateHud();
   banner(t('roundN', { n: num(session.match.round) }), t('fightBang'));
@@ -604,6 +635,7 @@ async function afterShot(session, res) {
 }
 
 function endMatch(session, reason) {
+  clearResume();
   const st = session.match;
   const ms = Date.now() - session.startedAt;
   const w = st.winner;
@@ -686,6 +718,7 @@ $('#btn-change-pen').addEventListener('click', () => {
 $('#btn-menu').addEventListener('click', () => { sfx.click(); clearInterval(autoTimer); closeModal('m-result'); quitMatch(); });
 
 function quitMatch(stay = false) {
+  clearResume();
   if (M && M.mode === 'online') net.emit('leave');
   M = null;
   view.setInput(-1);
@@ -736,6 +769,22 @@ function connect() {
   return socket;
 }
 
+// no answer, or the server does not know us: get a fresh connection and take the seat back
+function reconnectSeat() {
+  if (!M || M.mode !== 'online') return;
+  M.away = true;
+  if (socket.connected) socket.disconnect();
+  socket.connect();
+}
+
+// the server's picture wins: same board, same turn
+function resync(r) {
+  M.match = restore(r.state);
+  view.setState(r.state);
+  updateHud();
+  onlineTurn({ turn: r.turn, deadline: r.deadline, now: r.now });
+}
+
 // back after a drop: take our seat again, or say the match is gone (for example the server restarted)
 function rejoin() {
   const s = M;
@@ -750,10 +799,8 @@ function rejoin() {
       return;
     }
     s.q = Promise.resolve();
-    s.match = restore(r.state);
-    view.setState(r.state);
+    resync(r);
     toast(t('reconnected'));
-    onlineTurn({ turn: r.turn, deadline: r.deadline, now: r.now });
   });
 }
 
@@ -763,7 +810,7 @@ function queue(fn) {
   s.q = (s.q || Promise.resolve()).then(() => (M === s ? fn() : null)).catch((e) => console.error(e));
 }
 
-function onlineStart(d) {
+function onlineStart(d, resumed = false) {
   const players = d.players.map((p, i) => ({ name: p.name, tag: i === d.you ? t('you').slice(0, 3) : (p.name || '?').slice(0, 2).toUpperCase() }));
   const match = restore(d.state);
   M = { id: Math.random(), mode: 'online', you: d.you, match, players, startedAt: Date.now(), turnSeconds: d.turnSeconds, code: d.code };
@@ -771,9 +818,20 @@ function onlineStart(d) {
   view.setInput(-1);
   enterGame(true);
   updateHud();
+  renderEmotes();
+  saveResume();
+  if (resumed) { banner(t('roundN', { n: num(match.round) })); return; }
   banner(t('roundN', { n: num(1) }), t('fightBang'));
   sfx.round();
-  renderEmotes();
+}
+
+function resumeOnline(r) {
+  if (!connect()) { clearResume(); return; }
+  net.emit('room:rejoin', { code: r.code, clientId: D.clientId }, (a) => {
+    if (!a || !a.ok) { clearResume(); toast(t('connLost'), 5000); return; }
+    onlineStart({ ...a, code: r.code }, true);
+    onlineTurn({ turn: a.turn, deadline: a.deadline, now: a.now });
+  });
 }
 
 async function onlineShot(res) {
@@ -1015,9 +1073,12 @@ if (!sessionStorage.getItem('pf-visit')) { sessionStorage.setItem('pf-visit', '1
   document.addEventListener('visibilitychange', () => { if (document.hidden) flushSite(); else since = Date.now(); });
   setInterval(flushSite, 120000);
 }
-// invite link: /?room=CODE
+// invite link: /?room=CODE, or pick up a match that was going on before a refresh
 {
   const code = new URLSearchParams(location.search).get('room');
+  const r = !code && readResume();
+  if (r && r.mode === 'online' && r.code) resumeOnline(r);
+  else if (r && r.state && !r.state.over) { try { resumeOffline(r); } catch { clearResume(); M = null; home(); } }
   if (code) {
     window.history.replaceState(null, '', location.pathname);
     pick.mode = 'online';
