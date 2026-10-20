@@ -10,6 +10,8 @@ The school desk game. Flick your pen to knock the other pen off the desk.
 ## Run it
 
 ```bash
+git clone https://github.com/sabbirshawon/pen-fight.git
+cd pen-fight
 npm install
 npm start          # http://localhost:3000
 ```
@@ -56,6 +58,35 @@ The game needs a Node server for online play, for example Render, Railway, Fly.i
 - Start command: `npm start`
 - `PORT` is read from the environment
 - `DATA_DIR` (optional) sets where `stats.json` is saved. Point it at a persistent disk.
+
+## Contributing
+
+Contributions are welcome: a new pen, a smarter computer player, a new desk, a translation, a bug fix. Small fixes and big ideas are both fine.
+
+### Found a bug or have an idea?
+
+[Open an issue](https://github.com/sabbirshawon/pen-fight/issues/new/choose). There are two templates:
+
+- **Bug report**: what happened, what you expected, and your device and browser. A screenshot helps a lot.
+- **Feature or idea**: what you would like to see and why it would make the game more fun.
+
+Before you open one, check the [open issues](https://github.com/sabbirshawon/pen-fight/issues) in case someone already reported it.
+
+### Sending a pull request
+
+1. Fork the repo and create a branch: `git checkout -b my-change`
+2. Make your change and run the game with `npm start`.
+3. If you changed the physics or the rules, run `npm test` and play a few matches. Online play uses the same code on the server, so test **vs Computer** and **Online** (two browser windows are enough).
+4. Commit with a short, clear message and open a pull request. Say what you changed and why, and add a screenshot if the change is visible.
+
+### Good first ideas
+
+- A new pen in `shared/pens.js` with its own drawing in `public/js/render.js`
+- A new language in `public/js/i18n.js`
+- New desk carvings and doodles in `public/js/render.js`
+- Better computer play in `public/js/ai.js`
+
+Please keep the code style of the file you are editing. There is no build step, so plain JavaScript modules are the way to go.
 
 ## Moving to Flutter later
 
