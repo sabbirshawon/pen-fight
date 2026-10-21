@@ -136,7 +136,7 @@ function startTurnTimer(room, delayMs) {
 function startMatch(room) {
   clearTimers(room);
   const starter = Math.random() < 0.5 ? 0 : 1;
-  room.match = createMatch({ penIds: room.players.map((p) => p.pen), levels: [1, 1], roundsToWin: room.rounds, starter });
+  room.match = createMatch({ penIds: room.players.map((p) => p.pen), levels: [1, 1], roundsToWin: room.rounds, starter, clutter: !!room.clutter });
   room.startedAt = Date.now();
   room.rematch = [false, false];
   room.players.forEach((p, i) => p.socket && p.socket.emit('match:start', {
@@ -231,7 +231,7 @@ io.on('connection', (socket) => {
   socket.on('room:create', (info = {}, ack) => {
     leaveRoom(socket);
     queue = queue.filter((s) => s !== socket);
-    const room = { code: makeCode(), players: [], rounds: Math.max(1, Math.min(3, +info.rounds || 2)), match: null, private: true };
+    const room = { code: makeCode(), players: [], rounds: Math.max(1, Math.min(3, +info.rounds || 2)), clutter: !!info.clutter, match: null, private: true };
     rooms.set(room.code, room);
     joinRoom(socket, room, info);
     ack && ack({ ok: true, code: room.code });

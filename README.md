@@ -8,6 +8,10 @@ The school desk game. Flick your pen to knock the other pen off the desk.
 - **2 players**: two people on one device, taking turns.
 - **Online**: Quick match, or a private room with a 5-letter code and an invite link. Both players see the same aim live, there is a 30 s turn timer, quick reactions (emotes) and rematch.
 - 8 pens that play differently, pen levels, Classic or Real look, 2 desks, English and বাংলা, light and dark theme, stats, a leaderboard and world stats.
+- **Desk clutter**: an eraser, sharpener or ruler on the desk that pens bounce off. The layout changes every round, and it works online too.
+- **Daily challenge**: a new task every day (the same one for everyone), with a streak and a pen-level reward.
+- **Badges**: 18 badges for special wins and shots, such as Trick shot, Comeback and Bank shot.
+- **Instant replay**: the knockout flick plays again in slow motion, and you can watch it again from the result screen.
 
 ## Run it
 

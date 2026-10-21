@@ -14,9 +14,10 @@ const defaults = () => ({
   rounds: 2,
   equal: true,
   mirror: false,
+  clutter: false,
   settings: {
     theme: 'system', lang: (navigator.language || '').startsWith('bn') ? 'bn' : 'en',
-    desk: 'clean', look: 'real', aim: true, sound: true, reduceMotion: false, vibration: true, autoNext: false,
+    desk: 'clean', look: 'real', aim: true, sound: true, reduceMotion: false, vibration: true, autoNext: false, replay: true,
   },
   vsc: {
     played: 0, won: 0, lost: 0, streak: 0, best: 0, timeMs: 0, fastestWin: 0, longest: 0, rounds: 0,
@@ -26,6 +27,8 @@ const defaults = () => ({
   two: { played: 0, timeMs: 0, longest: 0, history: [] },
   online: { played: 0, won: 0, lost: 0, streak: 0, best: 0, timeMs: 0 },
   tutorialSeen: false,
+  ach: {},   // badge id -> time it was earned
+  daily: { last: '', streak: 0, best: 0, total: 0 },  // last = day key of the last finished challenge
 });
 
 function merge(base, extra) {
@@ -56,7 +59,13 @@ export const store = {
   },
   penLevel(id) {
     const r = data.vsc.byPen[id];
-    return levelFromWins(r ? r.w : 0);
+    return levelFromWins(r ? r.w + (r.bonus || 0) : 0);
+  },
+  // daily challenge reward: one win's worth of progress for a pen
+  addPenBonus(id) {
+    const p = (data.vsc.byPen[id] ||= { p: 0, w: 0 });
+    p.bonus = (p.bonus || 0) + 1;
+    this.save();
   },
   recordVsc({ won, level, pen, ms, rounds }) {
     const s = data.vsc;

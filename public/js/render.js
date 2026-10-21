@@ -367,6 +367,71 @@ export function drawPenShadow(ctx, pen, lift = 1) {
   ctx.restore();
 }
 
+/**
+ * Desk clutter centred at (0,0) along +x: eraser, sharpener or ruler.
+ * Sizes match OBSTACLES in shared/physics.js.
+ */
+export function drawObstacle(ctx, kind, look = 'classic') {
+  const real = look === 'real';
+  const box = (w, h, r) => { ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, r); };
+  const outline = (lw = 2.5) => { ctx.lineWidth = real ? 1 : lw; ctx.strokeStyle = real ? 'rgba(40,30,20,0.45)' : INK; ctx.stroke(); };
+  const W = { eraser: [66, 32, 7], sharpener: [34, 30, 5], ruler: [220, 20, 3] }[kind];
+  if (!W) return;
+  // shadow
+  ctx.save();
+  ctx.translate(4, 7);
+  ctx.fillStyle = 'rgba(40,20,5,0.3)';
+  ctx.filter = 'blur(3px)';
+  box(W[0], W[1], W[2]); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.lineJoin = 'round';
+  if (kind === 'eraser') {
+    box(66, 32, 7);
+    ctx.fillStyle = '#f6efe6'; ctx.fill();
+    // paper sleeve
+    ctx.save(); box(66, 32, 7); ctx.clip();
+    ctx.fillStyle = '#3f7fd0'; ctx.fillRect(-12, -16, 40, 32);
+    ctx.fillStyle = '#fff8ea'; ctx.fillRect(-4, -16, 6, 32);
+    if (real) {
+      const g = ctx.createLinearGradient(0, -16, 0, 16);
+      g.addColorStop(0, 'rgba(255,255,255,0.35)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,0.18)');
+      ctx.fillStyle = g; ctx.fillRect(-33, -16, 66, 32);
+    }
+    ctx.restore();
+    box(66, 32, 7); outline();
+  } else if (kind === 'sharpener') {
+    box(34, 30, 5);
+    const g = ctx.createLinearGradient(0, -15, 0, 15);
+    g.addColorStop(0, '#e8ebf0'); g.addColorStop(0.5, '#b9c0cb'); g.addColorStop(1, '#8d95a3');
+    ctx.fillStyle = real ? g : '#c3c9d3'; ctx.fill();
+    outline();
+    // the hole and the blade
+    ctx.beginPath(); ctx.arc(-6, 0, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#2b3445'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(4, -11); ctx.lineTo(13, 9);
+    ctx.lineWidth = 2.5; ctx.strokeStyle = real ? '#6b7280' : INK; ctx.stroke();
+    ctx.beginPath(); ctx.arc(11, -8, 2, 0, Math.PI * 2); ctx.fillStyle = '#5b6372'; ctx.fill();
+  } else {
+    box(220, 20, 3);
+    ctx.fillStyle = real ? 'rgba(244,214,140,0.92)' : '#f3d88f'; ctx.fill();
+    ctx.strokeStyle = 'rgba(70,50,20,0.75)'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let x = -100; x <= 100; x += 10) {
+      const long = x % 50 === 0;
+      ctx.moveTo(x, -10); ctx.lineTo(x, long ? -2 : -5);
+    }
+    ctx.stroke();
+    if (real) {
+      const g = ctx.createLinearGradient(0, -10, 0, 10);
+      g.addColorStop(0, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(0,0,0,0.1)');
+      ctx.fillStyle = g; box(220, 20, 3); ctx.fill();
+    }
+    box(220, 20, 3); outline(2);
+  }
+  ctx.restore();
+}
+
 export function capsulePath(ctx, len, wid, pad = 0) {
   rr(ctx, -len / 2 - pad, len / 2 + pad, wid + pad * 2, wid / 2 + pad, wid / 2 + pad);
 }

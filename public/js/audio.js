@@ -58,6 +58,12 @@ export const sfx = {
     noise(0.05 + v * 0.06, { freq: 3500, q: 2, vol: 0.15 + v * 0.35 });
     tone(320, 0.09, { type: 'triangle', vol: 0.1 + v * 0.15, slide: 0.6 });
   },
+  bump(s) {
+    const v = Math.min(1, s / 10);
+    tone(240 + Math.random() * 60, 0.07, { type: 'triangle', vol: 0.1 + v * 0.2, slide: 0.7 });
+    noise(0.04 + v * 0.04, { freq: 900, q: 1.5, vol: 0.12 + v * 0.25, type: 'lowpass' });
+  },
+  badge() { [784, 988, 1175, 1568].forEach((f, i) => tone(f, 0.16, { type: 'sine', vol: 0.12, delay: i * 0.07 })); },
   fall() {
     tone(520, 0.45, { type: 'sine', vol: 0.18, slide: 0.35 });
     noise(0.12, { freq: 500, q: 1, vol: 0.4, type: 'lowpass', delay: 0.42 });

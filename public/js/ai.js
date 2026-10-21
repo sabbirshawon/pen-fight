@@ -3,7 +3,7 @@
 // check that the shot still works when it is a little off, and (hard) what the
 // other player could do back. Lower levels try fewer shots and aim worse.
 import { simulate, edgeDistance, deskHalf } from '/shared/physics.js';
-import { nextShrink } from '/shared/game.js';
+import { nextShrink, liveObstacles } from '/shared/game.js';
 
 // robust: noisy re-tests per finalist, reply: shots tried for the other player
 const LEVELS = {
@@ -55,7 +55,7 @@ const jitter = (s, an, pn) => {
 };
 
 function evalShot(m, me, shot, cfg, keep) {
-  const sim = simulate({ bodies: m.bodies, stats: m.stats, deskScale: m.deskScale, shooter: me, shot, record: false, maxSteps: 900 });
+  const sim = simulate({ bodies: m.bodies, stats: m.stats, deskScale: m.deskScale, obstacles: liveObstacles(m), shooter: me, shot, record: false, maxSteps: 900 });
   // the desk may shrink right after this shot
   const ns = nextShrink(m);
   let score = scoreResult(sim, me, m.deskScale, cfg.care);
@@ -73,9 +73,10 @@ function evalShot(m, me, shot, cfg, keep) {
 function replyThreat(m, me, sim, tries) {
   const op = 1 - me;
   const pos = { bodies: sim.bodies, stats: m.stats, deskScale: nextShrink(m) || m.deskScale };
+  const obstacles = liveObstacles(m, pos.deskScale);
   let best = 0;
   for (let i = 0; i < tries; i++) {
-    const r = simulate({ bodies: pos.bodies, stats: pos.stats, deskScale: pos.deskScale, shooter: op, shot: randomShot(pos, op), record: false, maxSteps: 700 });
+    const r = simulate({ bodies: pos.bodies, stats: pos.stats, deskScale: pos.deskScale, obstacles, shooter: op, shot: randomShot(pos, op), record: false, maxSteps: 700 });
     if (r.off[me] && !r.off[op]) return 1;
     if (!r.off[op]) {
       const e = edgeDistance(r.bodies[me].x, r.bodies[me].y, pos.deskScale) / deskHalf(pos.deskScale).hh;

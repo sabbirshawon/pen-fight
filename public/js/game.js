@@ -1,8 +1,8 @@
 // The match view: draws the desk and pens, handles the flick input,
 // shows the aim guide and plays back simulated shots.
 import { DESK_W, DESK_H, deskHalf, simulate, shotVelocity } from '/shared/physics.js';
-import { nextShrink } from '/shared/game.js';
-import { makeWood, drawPen, drawPenShadow, capsulePath } from './render.js';
+import { nextShrink, liveObstacles } from '/shared/game.js';
+import { makeWood, drawPen, drawPenShadow, capsulePath, drawObstacle } from './render.js';
 import { sfx } from './audio.js';
 
 const TEAM = ['#e8742c', '#3f7fd0'];
@@ -42,6 +42,7 @@ export class GameView {
     this.time = 0;
     this.running = false;
     this.lastVib = 0;
+    this.gen = 0;          // bumps on every new state, so an old replay never writes over it
     this._bind();
   }
 
@@ -93,6 +94,7 @@ export class GameView {
   }
 
   setState(state) {
+    this.gen++;
     this.state = state;
     this.disp = state.bodies.map((b) => ({ x: b.x, y: b.y, a: b.a }));
     this.gone = state.bodies.map((b) => !!b.off);
@@ -132,6 +134,7 @@ export class GameView {
   // ---------- input ----------
   _down(e) {
     sfx.unlock();
+    if (this.playing && this.playing.replay) { this._endReplay(this.playing); return; }
     if (this.inputFor < 0 || this.playing || !this.state || this.state.roundOver) return;
     const i = this.inputFor;
     if (this.gone[i]) return;
@@ -248,6 +251,47 @@ export class GameView {
     });
   }
 
+  /**
+   * Play a recorded shot again, slowed down, then put the desk back as it was.
+   * rec: { res, bodies, deskScale } (the result and the desk before the shot)
+   */
+  replay(rec, { from = 0, to, speed = 0.45, label = 'REPLAY', hint = '' } = {}) {
+    return new Promise((resolve) => {
+      if (this.playing) { resolve(); return; }
+      this.cancelAim();
+      this.ghost = null;
+      const fr = rec.res.frames;
+      const saved = {
+        gen: this.gen, disp: this.disp.map((d) => ({ ...d })), gone: this.gone.slice(),
+        deskVis: this.deskVis, deskTarget: this.deskTarget, labelsAlpha: this.labelsAlpha,
+      };
+      const A = fr[from];
+      this.disp = [0, 1].map((i) => (A[i * 3] === null ? { ...rec.bodies[i] } : { x: A[i * 3], y: A[i * 3 + 1], a: A[i * 3 + 2] }));
+      this.gone = [0, 1].map((i) => A[i * 3] === null);
+      this.falling = [null, null];
+      this.deskVis = this.deskTarget = rec.deskScale;
+      this.labelsAlpha = 0;
+      const events = rec.res.events.filter((e) => e.type !== 'shrinkfall' && e.f >= from).sort((a, b) => a.f - b.f);
+      this.playing = {
+        res: rec.res, f: from, ev: 0, events, resolve, ending: false,
+        replay: { speed, to: Math.min(fr.length - 1, to ?? fr.length - 1), saved, label, hint, t0: this.time },
+      };
+    });
+  }
+
+  _endReplay(p) {
+    if (p.done) return;
+    p.done = true;
+    const s = p.replay.saved;
+    if (this.playing === p) this.playing = null;
+    if (this.gen === s.gen) {
+      this.disp = s.disp; this.gone = s.gone; this.falling = [null, null];
+      this.deskVis = s.deskVis; this.deskTarget = s.deskTarget; this.labelsAlpha = s.labelsAlpha;
+      this.particles = [];
+    }
+    p.resolve();
+  }
+
   _finishPlay() {
     const p = this.playing;
     const res = p.res;
@@ -300,7 +344,7 @@ export class GameView {
     this.time += dt;
     const p = this.playing;
     if (p && !p.ending) {
-      p.f += dtMs * 0.06;
+      p.f += dtMs * 0.06 * (p.replay ? p.replay.speed : 1);
       const fr = p.res.frames;
       while (p.ev < p.events.length && p.events[p.ev].f <= p.f) {
         const e = p.events[p.ev++];
@@ -310,6 +354,10 @@ export class GameView {
           this.kick(Math.min(9, e.s * 0.9));
           const st = this.hooks.settings();
           if (st.vibration && navigator.vibrate && e.s > 3) navigator.vibrate(12);
+        } else if (e.type === 'bump') {
+          this._spark(e.x, e.y, e.s * 0.6);
+          sfx.bump(e.s);
+          this.kick(Math.min(5, e.s * 0.5));
         } else if (e.type === 'fall') {
           this._startFall(e.pen, e);
         }
@@ -322,7 +370,9 @@ export class GameView {
         const b = B[i * 3] === null ? A : B;
         this.disp[i] = { x: lerp(A[i * 3], b[i * 3], t), y: lerp(A[i * 3 + 1], b[i * 3 + 1], t), a: lerp(A[i * 3 + 2], b[i * 3 + 2], t) };
       }
-      if (p.f >= last) { p.ending = true; this._finishPlay(); }
+      if (p.replay) {
+        if (p.f >= p.replay.to) { p.ending = true; setTimeout(() => this._endReplay(p), 900); }
+      } else if (p.f >= last) { p.ending = true; this._finishPlay(); }
     }
 
     for (let i = 0; i < 2; i++) {
@@ -360,7 +410,7 @@ export class GameView {
       const a = this.aim;
       const bodies = this.state.bodies.map((b, i) => ({ ...b, x: this.disp[i].x, y: this.disp[i].y, a: this.disp[i].a }));
       const sim = simulate({
-        bodies, stats: this.stats, deskScale: this.state.deskScale, shooter: a.player,
+        bodies, stats: this.stats, deskScale: this.state.deskScale, obstacles: liveObstacles(this.state), shooter: a.player,
         shot: { lx: a.lx, dx: a.dx, dy: a.dy, power: a.power }, record: false, trackPath: true, stopOnHit: true, maxSteps: 900,
       });
       this.preview = { path: sim.path, hit: sim.firstHit >= 0, off: sim.off[a.player] };
@@ -410,6 +460,7 @@ export class GameView {
     ctx.scale(s, s);
 
     this._drawDesk(ctx, st);
+    this._drawClutter(ctx, st);
 
     // pens
     for (let i = 0; i < 2; i++) {
@@ -464,6 +515,46 @@ export class GameView {
     this._drawParticles(ctx);
     if (this.aim) this._drawAim(ctx, this.aim, st, false);
     else if (this.ghost) this._drawAim(ctx, this.ghost, st, true);
+    if (this.playing && this.playing.replay) this._drawReplayBadge(ctx, this.playing.replay);
+  }
+
+  _drawClutter(ctx, st) {
+    const obs = this.state.obstacles;
+    if (!obs || !obs.length) return;
+    const { hw, hh } = deskHalf(this.deskVis);
+    for (const o of obs) {
+      // fades out as the shrinking desk passes it
+      const alpha = clamp(Math.min(hw - Math.abs(o.x), hh - Math.abs(o.y)) / 12 + 1, 0, 1);
+      if (alpha <= 0) continue;
+      ctx.save();
+      ctx.translate(o.x, o.y);
+      ctx.rotate(o.a || 0);
+      ctx.globalAlpha = alpha;
+      drawObstacle(ctx, o.kind, st.look);
+      ctx.restore();
+    }
+  }
+
+  _drawReplayBadge(ctx, r) {
+    ctx.save();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    const x = this.cw / 2, y = this.ch - Math.max(34, this.ch * 0.08);
+    ctx.font = "700 20px Fredoka, 'Hind Siliguri', sans-serif";
+    const w = ctx.measureText(r.label).width + 52;
+    ctx.fillStyle = 'rgba(30,24,20,0.72)';
+    ctx.beginPath(); ctx.roundRect(x - w / 2, y - 19, w, 38, 19); ctx.fill();
+    ctx.fillStyle = Math.sin((this.time - r.t0) * 6) > -0.3 ? '#e0482c' : 'rgba(224,72,44,0.25)';
+    ctx.beginPath(); ctx.arc(x - w / 2 + 20, y, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff8ea';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(r.label, x - w / 2 + 34, y + 1);
+    if (r.hint) {
+      ctx.font = "700 13px Nunito, 'Hind Siliguri', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,248,234,0.8)';
+      ctx.fillText(r.hint, x, y - 32);
+    }
+    ctx.restore();
   }
 
   _drawDesk(ctx, st) {

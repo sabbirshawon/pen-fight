@@ -33,6 +33,16 @@ while (!m.over && n < 200) {
   if (res.round) { console.log('round', m.round, 'winner', res.round.winner, 'after', m.turnInRound, 'shots, desk', m.deskScale); if (!m.over) (await import('../shared/game.js')).startNextRound(m); }
 }
 console.log('match over', m.over, 'winner', m.winner, 'scores', m.scores, 'shots', n);
+// desk clutter: a pen flicked straight at an eraser bounces back
+{
+  const ob = [{ kind: 'eraser', x: 0, y: 0, a: Math.PI / 2 }];
+  const pens = [{ x: -150, y: 0, a: Math.PI / 2, off: false }, { x: 300, y: 200, a: 0, off: false }];
+  const rb = simulate({ bodies: pens, stats, deskScale: 1, shooter: 0, shot: { lx: 0, dx: 1, dy: 0, power: 0.7 }, obstacles: ob });
+  const bumps = rb.events.filter((e) => e.type === 'bump');
+  console.log('clutter bounce', 'bumps', bumps.length, 'end x', rb.bodies[0].x, bumps.length && rb.bodies[0].x < -60 ? 'OK' : 'FAIL');
+  const mc = createMatch({ penIds: ['ballpoint', 'gel'], clutter: true });
+  console.log('clutter match', mc.obstacles.map((o) => o.kind).join(', '), mc.obstacles.length ? 'OK' : 'FAIL');
+}
 for (const pw of [0.3, 0.6, 1]) {
   const nb = [{ x: -40, y: 0, a: Math.PI / 2, off: false }, { x: 40, y: 0, a: Math.PI / 2, off: false }];
   const rr = simulate({ bodies: nb, stats, deskScale: 3, shooter: 0, shot: { lx: 0, dx: 1, dy: 0, power: pw } });

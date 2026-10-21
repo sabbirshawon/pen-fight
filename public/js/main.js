@@ -7,6 +7,7 @@ import { t, setLang, applyI18n, num } from './i18n.js';
 import { GameView } from './game.js';
 import { chooseShot } from './ai.js';
 import { makeWood, makeSchoolDesk, drawPen, drawPenShadow, penThumb } from './render.js';
+import { BADGES, badgeIcon, evaluate, dailyFor, dailyDone, dailyStreak } from './progress.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -23,6 +24,19 @@ function toast(msg, ms = 2600) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// badges and daily challenge news, one after another
+const notes = [];
+let noteBusy = false;
+function note(msg) { notes.push(msg); if (!noteBusy) nextNote(); }
+function nextNote() {
+  const m = notes.shift();
+  if (!m) { noteBusy = false; return; }
+  noteBusy = true;
+  toast(m, 2400);
+  sfx.badge();
+  setTimeout(nextNote, 2700);
 }
 
 function fmtDur(ms) {
@@ -90,6 +104,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySetti
 function refreshTexts() {
   const played = D.vsc.played + D.two.played + D.online.played;
   $('#home-played').textContent = played ? t('playedN', { n: num(played) }) : '';
+  renderDaily();
   if (current === 'pick') renderPick();
   if (current === 'board') renderBoard();
   if (current === 'stats') renderStats();
@@ -353,6 +368,9 @@ function renderPick() {
   $('#opt-mirror').checked = D.mirror;
   $('#rule-equal').classList.toggle('on', D.equal);
   $('#rule-mirror').classList.toggle('on', D.mirror);
+  $('#opt-clutter').checked = D.clutter;
+  $('#rule-clutter').classList.toggle('on', D.clutter);
+  $('#clutter-sub').textContent = t(pick.mode === 'online' ? 'clutterRoom' : 'clutterSub');
   $('#equal-sub').textContent = D.equal ? t('equalOn') : t('equalOff');
   $('#online-status').textContent = hasSocket() ? '' : t('noServer');
   $$('#look-seg button').forEach((b) => b.classList.toggle('on', b.dataset.look === S.look));
@@ -387,6 +405,7 @@ $$('#level-seg button').forEach((b) => b.addEventListener('click', () => { store
 $$('#rounds-seg button').forEach((b) => b.addEventListener('click', () => { store.set('rounds', +b.dataset.rounds); sfx.click(); renderPick(); }));
 $('#opt-equal').addEventListener('change', (e) => { store.set('equal', e.target.checked); renderPick(); });
 $('#opt-mirror').addEventListener('change', (e) => { store.set('mirror', e.target.checked); renderPick(); });
+$('#opt-clutter').addEventListener('change', (e) => { store.set('clutter', e.target.checked); renderPick(); });
 $$('#look-seg button').forEach((b) => b.addEventListener('click', () => { store.setting('look', b.dataset.look); sfx.click(); applySettings(); }));
 
 $('#pen-info-btn').addEventListener('click', () => {
@@ -395,7 +414,7 @@ $('#pen-info-btn').addEventListener('click', () => {
   const bars = penBars(id);
   const rec = D.vsc.byPen[id] || { p: 0, w: 0 };
   const lv = store.penLevel(id);
-  const toNext = lv >= MAX_LEVEL ? t('maxLevel') : t('nextLevel', { n: num(WINS_PER_LEVEL - (rec.w % WINS_PER_LEVEL)), l: num(lv + 1) });
+  const toNext = lv >= MAX_LEVEL ? t('maxLevel') : t('nextLevel', { n: num(WINS_PER_LEVEL - ((rec.w + (rec.bonus || 0)) % WINS_PER_LEVEL)), l: num(lv + 1) });
   $('#info-title').textContent = penName(id);
   $('#info-body').innerHTML = `<p class="muted">${esc(penDesc(id))}</p>` +
     [['power', bars.power], ['weight', bars.weight], ['roll', bars.roll], ['length', bars.length]]
@@ -548,7 +567,7 @@ function startOffline(opts = {}) {
     levels = D.equal ? [1, 1] : [store.penLevel(D.pen), store.penLevel(D.pen2)];
     players = [{ name: D.name || t('player1'), tag: 'P1' }, { name: D.name2 || t('player2'), tag: 'P2' }];
   }
-  const match = createMatch({ penIds, levels, roundsToWin: opts.practice ? 1 : D.rounds, starter: mode === 'vsc' ? 0 : Math.random() < 0.5 ? 0 : 1 });
+  const match = createMatch({ penIds, levels, roundsToWin: opts.practice ? 1 : D.rounds, starter: mode === 'vsc' ? 0 : Math.random() < 0.5 ? 0 : 1, clutter: !opts.practice && D.clutter });
   M = { id: Math.random(), mode, level, match, players, startedAt: Date.now(), practice: !!opts.practice };
   saveResume();
   view.setMatch(snapshot(match), match.stats, players);
@@ -602,17 +621,98 @@ function onLocalShot(shot) {
 
 async function runLocalShot(session, player, shot) {
   view.setInput(-1);
+  const before = deskBefore(session.match);
   let res;
   try { res = playShot(session.match, player, shot); } catch { return; }
+  keepKO(session, res, before);
   saveResume();
   await view.play(res);
   if (M !== session) return;
   await afterShot(session, res);
 }
 
+// ---------- replay, badges, daily challenge ----------
+const deskBefore = (m) => ({ bodies: m.bodies.map((b) => ({ ...b })), deskScale: m.deskScale });
+function keepKO(session, res, before) {
+  if (res.round && res.events.some((e) => e.type === 'fall')) session.lastKO = { res, ...before };
+}
+function replayOpts(rec) {
+  const fall = rec.res.events.find((e) => e.type === 'fall');
+  const n = rec.res.frames.length - 1;
+  return { from: fall.f < 110 ? 0 : fall.f - 80, to: Math.min(n, fall.f + 45), label: t('replayBadge'), hint: t('tapSkip') };
+}
+
+// which player is "you" for badges (nobody in 2 players or practice)
+function meOf(session) {
+  if (session.practice) return null;
+  return session.mode === 'vsc' ? 0 : session.mode === 'online' ? session.you : null;
+}
+function trackShot(session, res) {
+  const me = meOf(session);
+  if (me === null) return;
+  const g = (session.prog ||= { flags: {}, lostRounds: 0, firstRoundLost: false, myShots: 0, roundShots: 0 });
+  if (res.shooter === me && res.shot.power > 0) { g.myShots++; g.roundShots++; }
+  const r = res.round;
+  if (!r) return;
+  const fell = (i) => res.events.some((e) => e.type === 'fall' && e.pen === i);
+  if (res.shooter === me && r.winner === me && fell(1 - me)) {
+    if (Math.abs(res.shot.lx) >= 0.3) g.flags.trick = true;
+    if (g.roundShots === 1) g.flags.oneShot = true;
+    if (res.events.some((e) => e.type === 'bump' && e.pen === me)) g.flags.bank = true;
+  }
+  if (r.winner === me && res.state.deskScale <= 0.6) g.flags.tiny = true;
+  if (res.shooter === me && r.winner < 0 && fell(0) && fell(1)) g.flags.kamikaze = true;
+  if (r.winner === 1 - me) { g.lostRounds++; if (res.state.round === 1) g.firstRoundLost = true; }
+  g.roundShots = 0;
+}
+// quiet: the result screen shows the news as chips instead of toasts
+function checkProgress(session, won, quiet = false) {
+  if (session.practice) return;
+  const me = meOf(session), st = session.match, g = session.prog || {};
+  const out = evaluate({
+    mode: session.mode, level: session.level, pen: me === null ? null : st.penIds[me], clutter: !!st.clutter,
+    roundsToWin: st.roundsToWin, won: me === null ? undefined : won, lostRounds: g.lostRounds || 0,
+    firstRoundLost: !!g.firstRoundLost, myShots: g.myShots || 0, flags: g.flags || {},
+  });
+  (session.earned ||= []).push(...out.badges);
+  if (out.daily) session.dailyDone = true;
+  if (quiet) return;
+  out.badges.forEach((id) => note(`${badgeIcon(id)} ${t('badgeGot', { name: t('ach_' + id) })}`));
+  if (out.daily) note(`📅 ${t('dailyDoneToast', { n: num(D.daily.streak) })}`);
+}
+
+function dailyText(ch) {
+  return t('dc_' + ch.k, { level: ch.level ? t(ch.level) : '', pen: ch.pen ? penName(ch.pen) : '', n: num(ch.n || 0) });
+}
+function renderDaily() {
+  const ch = dailyFor(), done = dailyDone(), streak = dailyStreak();
+  $('#daily-text').textContent = dailyText(ch);
+  $('#daily-sub').textContent = done ? t('dailyDone') : t('dailyReward');
+  $('#daily-side').textContent = done ? '✓' : streak ? `🔥 ${num(streak)}` : '';
+  $('#daily-card').classList.toggle('done', done);
+}
+// get the pick screen ready for today's challenge
+$('#daily-card').addEventListener('click', () => {
+  sfx.click();
+  const ch = dailyFor();
+  if (!dailyDone()) {
+    if (ch.k === 'beat') store.set('level', ch.level);
+    if (ch.k === 'pen') store.set('pen', ch.pen);
+    if (ch.k === 'clutter') store.set('clutter', true);
+    if (ch.k === 'first3') store.set('rounds', 3);
+    if (ch.k === 'flawless' && D.rounds < 2) store.set('rounds', 2);
+    toast(dailyText(ch), 3500);
+  }
+  pick.mode = 'vsc';
+  pick.slot = 0;
+  go('pick');
+});
+
 async function afterShot(session, res) {
   updateHud();
+  trackShot(session, res);
   if (!res.round) { nextTurn(session); return; }
+  if (!res.matchOver) checkProgress(session);
   const w = res.round.winner;
   if (w < 0) { banner(t('roundDraw'), t('roundDrawSub')); sfx.lose(); }
   else {
@@ -621,7 +721,15 @@ async function afterShot(session, res) {
     banner(youWon ? t('roundYou') : t('roundWin', { name }), res.round.selfOut ? t('selfOut') : '');
     youWon || session.mode === 'two' ? sfx.round() : sfx.lose();
   }
-  await sleep(2000);
+  // online rounds run on the server's clock, so there the replay waits for the end of the match
+  const rec = session.lastKO && session.lastKO.res === res ? session.lastKO : null;
+  if (rec && S.replay && (session.mode !== 'online' || res.matchOver)) {
+    await sleep(1300);
+    if (M !== session) return;
+    await view.replay(rec, replayOpts(rec));
+    if (M !== session) return;
+    await sleep(250);
+  } else await sleep(2000);
   if (M !== session) return;
   if (res.matchOver) { endMatch(session); return; }
   if (session.mode === 'online') return; // the server starts the next round
@@ -664,6 +772,7 @@ function endMatch(session, reason) {
     if (reason) extra.push(t('opponentLeft'));
     store.recordOnline({ won: win, ms });
   }
+  checkProgress(session, win, true);
   win ? sfx.win() : sfx.lose();
   $('#result-ico').innerHTML = `<svg><use href="#${win ? 'i-trophy' : 'i-lose'}"/></svg>`;
   $('#result-ico').classList.toggle('lose', !win);
@@ -672,6 +781,12 @@ function endMatch(session, reason) {
   $('#result-stats').innerHTML = [
     [fmtDur(ms), t('time')], [num(st.shots), t('shots')], [num(st.round), t('roundN', { n: '' }).trim() || 'Rounds'],
   ].map(([v, l]) => `<div class="tile"><b style="font-size:24px">${esc(v)}</b><small>${esc(l)}</small></div>`).join('');
+  $('#result-badges').innerHTML = (session.dailyDone ? `<span class="rb daily-rb">📅 ${esc(t('dailyDoneToast', { n: num(D.daily.streak) }))}</span>` : '') +
+    (session.earned || []).map((id) => `<span class="rb">${badgeIcon(id)} ${esc(t('ach_' + id))}</span>`).join('');
+  if (session.earned?.length || session.dailyDone) setTimeout(() => sfx.badge(), 700);
+  $('#btn-replay').style.display = session.lastKO ? '' : 'none';
+  $('#btn-replay').title = t('watchReplay');
+  $('#btn-replay').setAttribute('aria-label', t('watchReplay'));
   $('#rematch-text').textContent = t('rematch');
   $('#btn-rematch').disabled = session.mode === 'online' && !!reason;
   $('#btn-change-pen').style.display = session.mode === 'online' ? 'none' : '';
@@ -707,6 +822,16 @@ function rematch() {
   startOffline();
 }
 $('#btn-rematch').addEventListener('click', () => { sfx.click(); rematch(); });
+$('#btn-replay').addEventListener('click', async () => {
+  const s = M;
+  if (!s || !s.lastKO || view.busy) return;
+  sfx.click();
+  clearInterval(autoTimer);
+  $('#auto-next').textContent = '';
+  closeModal('m-result');
+  await view.replay(s.lastKO, replayOpts(s.lastKO));
+  if (M === s) openModal('m-result');
+});
 $('#btn-change-pen').addEventListener('click', () => {
   sfx.click(); clearInterval(autoTimer); closeModal('m-result');
   const mode = M ? M.mode : 'vsc';
@@ -839,6 +964,7 @@ async function onlineShot(res) {
   view.setInput(-1);
   M.deadline = 0;
   if (res.timeout && res.shooter === M.you) toast(t('timeUp'));
+  keepKO(s, res, deskBefore(M.match));
   M.match = restore(res.state);
   await view.play(res);
   if (M !== s) return;
@@ -915,7 +1041,7 @@ function showEmote(e, from) {
 }
 
 function onlineInfo() {
-  return { name: D.name || D.guest, pen: D.pen, clientId: D.clientId, rounds: D.rounds };
+  return { name: D.name || D.guest, pen: D.pen, clientId: D.clientId, rounds: D.rounds, clutter: D.clutter };
 }
 
 function showWait(kind, code) {
@@ -1037,6 +1163,12 @@ async function renderStats() {
       <div class="foot">${esc(t('savedDevice'))} · <a id="stats-backup">${esc(t('backup'))}</a></div>`;
     $$('#stats-sub button').forEach((b) => b.addEventListener('click', () => { statsSub = b.dataset.sub; sfx.click(); renderStats(); }));
     $('#stats-backup').addEventListener('click', () => $('#btn-backup').click());
+  } else if (statsTab === 'badges') {
+    const got = BADGES.filter(([id]) => D.ach[id]).length;
+    body.innerHTML = `<div class="tiles t3">${tile('i-trophy', `${num(got)}/${num(BADGES.length)}`, t('badgesEarned'))}${tile('i-fire', num(dailyStreak()), t('dailyStreak'))}${tile('i-check', num(D.daily.total), t('dailyTotal'))}</div>
+      <div class="label">${esc(t('badges'))}</div>
+      <div class="badges">${BADGES.map(([id, ic]) => `<div class="badge${D.ach[id] ? ' got' : ''}"><span class="badge-ico">${ic}</span><div><b>${esc(t('ach_' + id))}</b><small>${esc(t('achd_' + id))}</small></div>${D.ach[id] ? '<svg><use href="#i-check"/></svg>' : ''}</div>`).join('')}</div>
+      <div class="foot">${esc(t('savedDevice'))}</div>`;
   } else {
     body.innerHTML = '<div class="muted center">…</div>';
     const w = await api('/api/stats');
@@ -1057,6 +1189,7 @@ $('#btn-fight').addEventListener('click', () => { sfx.unlock(); sfx.click(); sta
 
 // ---------- start ----------
 document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
+evaluate({}); // badges already earned by progress from before badges existed
 applySettings();
 startHero();
 pingOnline();

@@ -10,6 +10,27 @@ export const RULES = {
   turnSeconds: 30,  // online turn timer
 };
 
+// Desk clutter layouts. The pens start at x = ±150, so nothing sits there.
+const LAYOUTS = [
+  [{ kind: 'eraser', x: 0, y: 70, a: 0.4 }],
+  [{ kind: 'sharpener', x: 0, y: -115, a: 0.2 }, { kind: 'sharpener', x: 0, y: 115, a: -0.3 }],
+  [{ kind: 'ruler', x: 0, y: -150, a: 0.12 }, { kind: 'eraser', x: -10, y: 150, a: -0.3 }],
+  [{ kind: 'eraser', x: -20, y: -70, a: 0.9 }, { kind: 'sharpener', x: 40, y: 85, a: 0.5 }],
+  [{ kind: 'ruler', x: 0, y: 0, a: Math.PI / 2 - 0.25 }],
+  [{ kind: 'sharpener', x: 0, y: 0, a: 0.6 }, { kind: 'eraser', x: -260, y: -170, a: 0.2 }, { kind: 'eraser', x: 260, y: 170, a: 0.2 }],
+];
+
+export function startObstacles(rng = Math.random) {
+  const L = LAYOUTS[Math.floor(rng() * LAYOUTS.length)];
+  const fy = rng() < 0.5 ? 1 : -1; // mirror top/bottom for variety
+  return L.map((o) => ({ kind: o.kind, x: o.x, y: o.y * fy, a: +(o.a * fy).toFixed(4) }));
+}
+
+// Clutter that is still on the desk (the desk shrinking past it takes it away).
+export function liveObstacles(m, scale = m.deskScale) {
+  return (m.obstacles || []).filter((o) => isOnDesk(o.x, o.y, scale));
+}
+
 export function startBodies(rng = Math.random) {
   const j = () => rng() - 0.5;
   const flipA = rng() < 0.5 ? 0 : Math.PI;
@@ -26,6 +47,7 @@ export function startBodies(rng = Math.random) {
  * @param {number[]} [o.levels]
  * @param {number} [o.roundsToWin]
  * @param {number} [o.starter]
+ * @param {boolean} [o.clutter]  put an eraser, sharpener or ruler on the desk
  */
 export function createMatch(o) {
   const levels = o.levels || [1, 1];
@@ -46,6 +68,8 @@ export function createMatch(o) {
     winner: -1,
     nextStarter: 0,
     shots: 0,
+    clutter: !!o.clutter,
+    obstacles: o.clutter ? startObstacles() : [],
   };
   return m;
 }
@@ -65,11 +89,12 @@ export function snapshot(m) {
     round: m.round, starter: m.starter, turn: m.turn, turnInRound: m.turnInRound,
     deskScale: m.deskScale, bodies: m.bodies.map((b) => ({ ...b })), roundOver: m.roundOver,
     over: m.over, winner: m.winner, nextStarter: m.nextStarter, shots: m.shots,
+    clutter: !!m.clutter, obstacles: (m.obstacles || []).map((o) => ({ ...o })),
   };
 }
 
 export function restore(s) {
-  return { ...s, stats: s.penIds.map((id, i) => penStats(id, s.levels[i])), bodies: s.bodies.map((b) => ({ ...b })), scores: s.scores.slice() };
+  return { ...s, stats: s.penIds.map((id, i) => penStats(id, s.levels[i])), bodies: s.bodies.map((b) => ({ ...b })), scores: s.scores.slice(), obstacles: (s.obstacles || []).map((o) => ({ ...o })) };
 }
 
 export function sanitizeShot(shot) {
@@ -93,7 +118,7 @@ export function playShot(m, player, rawShot, opts = {}) {
   if (player !== m.turn) throw new Error('not your turn');
   const shot = sanitizeShot(rawShot);
   const sim = simulate({
-    bodies: m.bodies, stats: m.stats, deskScale: m.deskScale,
+    bodies: m.bodies, stats: m.stats, deskScale: m.deskScale, obstacles: liveObstacles(m),
     shooter: player, shot, record: opts.record !== false,
   });
   m.bodies = sim.bodies;
@@ -147,6 +172,7 @@ export function startNextRound(m, rng) {
   m.turnInRound = 0;
   m.deskScale = 1;
   m.bodies = startBodies(rng);
+  if (m.clutter) m.obstacles = startObstacles(rng);
   m.roundOver = false;
   return m;
 }

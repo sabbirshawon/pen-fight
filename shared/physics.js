@@ -31,6 +31,13 @@ export const TUNE = {
   minPower: 0.05,
 };
 
+// Desk clutter: fixed objects the pens bounce off. Sizes in world units.
+export const OBSTACLES = {
+  eraser: { w: 66, h: 32, r: 7 },
+  sharpener: { w: 34, h: 30, r: 5 },
+  ruler: { w: 220, h: 20, r: 3 },
+};
+
 export function deskHalf(scale) {
   return { hw: (DESK_W / 2) * scale, hh: (DESK_H / 2) * scale };
 }
@@ -122,7 +129,8 @@ const r4 = (v) => Math.round(v * 10000) / 10000;
  * @param {object} o.shot
  * @param {boolean} [o.record=true]       record frames for playback
  * @param {number} [o.maxSteps]
- * @param {number} [o.stopOnHit]          stop at the first hit (aim preview)
+ * @param {number} [o.stopOnHit]          stop at the first hit between pens (aim preview)
+ * @param {Array<{kind,x,y,a}>} [o.obstacles]  desk clutter on the desk right now
  */
 export function simulate(o) {
   const record = o.record !== false;
@@ -134,6 +142,13 @@ export function simulate(o) {
   });
   const live = o.bodies.map((p, i) => (p.off ? null : makeBody(p, o.stats[i])));
   live.forEach((b) => b && M.Composite.add(engine.world, b));
+  for (const ob of o.obstacles || []) {
+    const k = OBSTACLES[ob.kind];
+    if (!k) continue;
+    M.Composite.add(engine.world, M.Bodies.rectangle(ob.x, ob.y, k.w, k.h, {
+      isStatic: true, angle: ob.a || 0, chamfer: { radius: k.r }, restitution: 0.55, friction: 0.1, slop: 0.02,
+    }));
+  }
 
   const events = [];
   const frames = [];
@@ -141,6 +156,7 @@ export function simulate(o) {
   let substep = 0;
   let firstHit = -1;
   let lastHitFrame = -99;
+  const lastBump = [-99, -99];
 
   // Matter.js barely bounces flat sides off each other, so the first contact
   // gets a proper rigid-rod impulse. It runs inside update (before Matter's
@@ -181,6 +197,15 @@ export function simulate(o) {
       const x = sup ? sup.x : (a.position.x + b.position.x) / 2;
       const y = sup ? sup.y : (a.position.y + b.position.y) / 2;
       const f = Math.floor(substep / RECORD_EVERY);
+      // a pen against desk clutter
+      if (a.isStatic || b.isStatic) {
+        const pen = live.indexOf(a.isStatic ? b : a);
+        if (pen >= 0 && s > 0.6 && f - lastBump[pen] > 4) {
+          events.push({ type: 'bump', pen, f, x: r2(x), y: r2(y), s: r2(s) });
+          lastBump[pen] = f;
+        }
+        continue;
+      }
       if (firstHit < 0) firstHit = f;
       queueBounce(a, b, pair, x, y);
       if (s > 0.6 && f - lastHitFrame > 4) {
