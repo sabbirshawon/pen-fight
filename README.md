@@ -63,7 +63,9 @@ The live game runs on Render. Any host that runs Node works, for example Render,
 
 - Start command: `npm start`
 - `PORT` is read from the environment
-- `DATA_DIR` (optional) sets where `stats.json` is saved. Point it at a persistent disk.
+- World stats (players, matches, online leaderboard) need storage that survives a restart. Free hosts like Render wipe their disk on every deploy and restart, so use one of these:
+  - **Upstash Redis (free):** create a database at [upstash.com](https://upstash.com), then set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` on the host.
+  - **A persistent disk:** set `DATA_DIR` to a folder on it. Without either, `stats.json` is saved in `data/`.
 
 ## Contributing
 

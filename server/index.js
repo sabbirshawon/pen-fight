@@ -25,21 +25,66 @@ app.use(express.static(path.join(ROOT, 'public')));
 app.use('/shared', express.static(path.join(ROOT, 'shared')));
 app.get('/vendor/matter.min.js', (req, res) => res.sendFile(path.join(ROOT, 'node_modules/matter-js/build/matter.min.js')));
 
-// ---------- world stats (saved to a JSON file) ----------
+// ---------- world stats ----------
+// Saved to Upstash Redis when UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are set
+// (free hosts like Render wipe their disk on every deploy and restart), else to a JSON file.
 const emptyStats = () => ({
   visits: 0, players: {}, matches: { vsc: 0, two: 0, online: 0 },
   playMs: 0, siteMs: 0,
   vsc: { easy: [0, 0, 0], normal: [0, 0, 0], hard: [0, 0, 0] }, // won, lost, draws
   online: {}, // clientId -> { name, won, lost, played }
 });
+const KV_URL = process.env.UPSTASH_REDIS_REST_URL;
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const KV_KEY = process.env.STATS_KEY || 'penfight:stats';
+async function kv(cmd) {
+  const r = await fetch(KV_URL, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${KV_TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify(cmd),
+  });
+  if (!r.ok) throw new Error(`Redis answered ${r.status}`);
+  return (await r.json()).result;
+}
+
 let stats = emptyStats();
-try { stats = { ...emptyStats(), ...JSON.parse(fs.readFileSync(STATS_FILE, 'utf8')) }; } catch { /* first run */ }
+let canSave = true;
+if (KV_URL && KV_TOKEN) {
+  // if the saved stats cannot be read, never write: an empty copy would replace them
+  canSave = false;
+  for (let i = 0; i < 3 && !canSave; i++) {
+    try {
+      const saved = await kv(['GET', KV_KEY]);
+      if (saved) stats = { ...emptyStats(), ...JSON.parse(saved) };
+      canSave = true;
+      console.log('World stats loaded from Redis');
+    } catch (e) {
+      console.error('Could not load world stats from Redis:', e.message);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+} else {
+  try { stats = { ...emptyStats(), ...JSON.parse(fs.readFileSync(STATS_FILE, 'utf8')) }; } catch { /* first run */ }
+}
+
+function writeStats() {
+  if (!canSave) return Promise.resolve();
+  const json = JSON.stringify(stats);
+  if (KV_URL && KV_TOKEN) return kv(['SET', KV_KEY, json]).catch((e) => console.error('Could not save world stats:', e.message));
+  return fs.promises.mkdir(DATA_DIR, { recursive: true }).then(() => fs.promises.writeFile(STATS_FILE, json)).catch(() => {});
+}
 let saveTimer = null;
 function saveStats() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.mkdir(DATA_DIR, { recursive: true }, () => fs.writeFile(STATS_FILE, JSON.stringify(stats), () => {}));
-  }, 2000);
+  saveTimer = setTimeout(writeStats, 2000);
+}
+// the host stops the server on deploy and restart: save what is waiting first
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, async () => {
+    clearTimeout(saveTimer);
+    await writeStats();
+    process.exit(0);
+  });
 }
 const cleanId = (s) => String(s || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40);
 const cleanName = (s) => String(s || '').replace(/[<>]/g, '').trim().slice(0, 16) || 'Player';
